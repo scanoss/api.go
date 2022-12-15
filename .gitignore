@@ -11,5 +11,16 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+# Ignore env files
+.env
+*.env
+
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+.vscode/
+*.wfp
+*-result.json
+
+# Ingore the version text file. only used during build
+version.txt

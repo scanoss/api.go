@@ -1,0 +1,10 @@
+{
+  "App": {
+    "Name": "Scanning API (WAYUU2)",
+    "Debug": true,
+    "Mode":  "dev"
+  },
+  "Scanning": {
+    "ScanBinary": "./tests/scanoss.sh"
+  }
+}
