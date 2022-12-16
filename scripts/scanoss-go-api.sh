@@ -14,10 +14,14 @@ BACKUP_FILE=$LOGFILE.$TIMESTAMP
 CONF_FILE=/usr/local/etc/scanoss/api/app-config-${ENVIRONMENT}.json
 # Rotate log
 if [ -f $LOGFILE ] ; then
+  echo "rotating logfile..."
   cp $LOGFILE $BACKUP_FILE
   gzip -f $BACKUP_FILE
 fi
 echo > $LOGFILE
+
+# echo "removing old fingerprint & sbom temporary files..."
+# rm -f /tmp/finger*.wfp /tmp/sbom*.json /tmp/failed-finger*.wfp
 
 #start API
 echo "starting SCANOSS GO API"
