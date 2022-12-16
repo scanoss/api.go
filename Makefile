@@ -1,6 +1,6 @@
 
 #vars
-IMAGE_NAME=scanoss-wayuu2
+IMAGE_NAME=scanoss-go-api
 REPO=scanoss
 DOCKER_FULLNAME=${REPO}/${IMAGE_NAME}
 GHCR_FULLNAME=ghcr.io/${REPO}/${IMAGE_NAME}

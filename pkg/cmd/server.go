@@ -14,6 +14,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+// Package cmd handles Scanning Service REST API launch
 package cmd
 
 import (
@@ -24,8 +25,8 @@ import (
 	"github.com/golobby/config/v3/pkg/feeder"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"os"
-	myconfig "scanoss.com/wayuu2/pkg/config"
-	rest "scanoss.com/wayuu2/pkg/protocol/rest"
+	myconfig "scanoss.com/go-api/pkg/config"
+	"scanoss.com/go-api/pkg/protocol/rest"
 	"strings"
 )
 

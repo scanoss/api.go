@@ -1,0 +1,14 @@
+[Unit]
+Description=SCANOSS GO API Service
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+User=scanoss
+ExecStart=/usr/local/bin/scanoss-go-api.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -27,8 +27,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	myconfig "scanoss.com/wayuu2/pkg/config"
-	"scanoss.com/wayuu2/pkg/service"
+	myconfig "scanoss.com/go-api/pkg/config"
+	"scanoss.com/go-api/pkg/service"
 	"syscall"
 	"time"
 )
@@ -59,7 +59,7 @@ func RunServer(config *myconfig.ServerConfig) error {
 		startTls = true
 	}
 	scanningService := service.NewScanningService(config)
-	// Setup the endpoint routing
+	// Set up the endpoint routing
 	router := mux.NewRouter().StrictSlash(true)
 	srv := &http.Server{
 		Handler: router,

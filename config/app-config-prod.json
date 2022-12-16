@@ -1,0 +1,19 @@
+{
+  "App": {
+    "Name": "Scanning GO API",
+    "Debug": false,
+    "Mode":  "prod",
+    "Addr":  "",
+    "Port":  "5443"
+  },
+  "Scanning": {
+    "Workers": 1,
+    "ScanDebug": false,
+    "TmpFileDelete": true,
+    "KeepFailedWfps": true,
+    "ScanFlags": 0
+  },
+  "Logging": {
+    "DynamicLogging": true
+  }
+}

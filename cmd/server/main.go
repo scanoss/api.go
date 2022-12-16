@@ -14,13 +14,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package main loads the gRPC Dependency Server Service
+// Package main loads the REST Scanning Server Service
 package main
 
 import (
 	"fmt"
 	"os"
-	"scanoss.com/wayuu2/pkg/cmd"
+	"scanoss.com/go-api/pkg/cmd"
 )
 
 // main starts the Scanning Service

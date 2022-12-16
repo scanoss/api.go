@@ -10,16 +10,16 @@ RUN go mod download
 COPY . ./
 
 RUN go generate ./pkg/cmd/server.go
-RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./scanoss-wayuu2 ./cmd/server
+RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./scanoss-go-api ./cmd/server
 
 
 FROM debian:buster-slim
 
 WORKDIR /app
  
-COPY --from=build /app/scanoss-wayuu2 /app/scanoss-wayuu2
+COPY --from=build /app/scanoss-go-api /app/scanoss-go-api
 
-EXPOSE 8085
+EXPOSE 5443
 
-ENTRYPOINT ["./scanoss-wayuu2"]
+ENTRYPOINT ["./scanoss-go-api"]
 #CMD ["--help"]

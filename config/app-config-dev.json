@@ -1,6 +1,6 @@
 {
   "App": {
-    "Name": "Scanning API (WAYUU2)",
+    "Name": "Scanning GO API",
     "Debug": true,
     "Mode":  "dev"
   },

@@ -14,19 +14,22 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+// Package service handles all the REST scanning requests
 package service
 
 import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"os/exec"
-	myconfig "scanoss.com/wayuu2/pkg/config"
+	myconfig "scanoss.com/go-api/pkg/config"
 	"strings"
 	"time"
 )
@@ -42,7 +45,7 @@ func NewScanningService(config *myconfig.ServerConfig) *ScanningService {
 // FileContents handles retrieval of sources file for a client
 func (s ScanningService) FileContents(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	zlog.S.Infof("%v request from %v - %v", r.RemoteAddr, r.URL.Path, vars)
+	zlog.S.Infof("%v request from %v - %v", r.URL.Path, r.RemoteAddr, vars)
 	if vars == nil || len(vars) == 0 {
 		zlog.S.Errorf("Failed to retrieve request variables")
 		http.Error(w, "ERROR no request variables submitted", http.StatusBadRequest)
@@ -64,31 +67,29 @@ func (s ScanningService) FileContents(w http.ResponseWriter, r *http.Request) {
 	output, err := exec.CommandContext(ctx, s.config.Scanning.ScanBinary, args...).Output()
 	if err != nil {
 		zlog.S.Errorf("Contents command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)
+		zlog.S.Errorf("Command output: %s", bytes.TrimSpace(output))
 		http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 		return
 	}
 	if s.config.App.Trace {
-		zlog.S.Debugf("Sending back contents: %v - '%v'", len(output), output)
+		zlog.S.Debugf("Sending back contents: %v - '%s'", len(output), output)
 	} else {
 		zlog.S.Debugf("Sending back contents: %v", len(output))
 	}
-	_, err = fmt.Fprint(w, string(output))
-	if err != nil {
-		zlog.S.Errorf("Problem writing results back to client: %v", err)
-	}
+	printResponse(w, string(output))
 }
 
 // ScanDirect handles WFP scanning requests from a client
 func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 
-	zlog.S.Infof("%v request from %v", r.RemoteAddr, r.URL.Path)
+	zlog.S.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
 	file, _, err := r.FormFile("file")
 	if err != nil {
 		zlog.S.Errorf("Failed to retrieve WFP file: %v", err)
 		http.Error(w, "ERROR receiving WFP file", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer closeMultipartFile(file)
 	contents, err := io.ReadAll(file) // Load the file (WFP) contents into memory
 	if err != nil {
 		zlog.S.Errorf("Failed to retrieve WFP file contents: %v", err)
@@ -104,9 +105,10 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 	flags := r.Header.Get("flags")   // Scanning flags
 	scanType := r.Header.Get("type") // SBOM type
 	sbom := r.Header.Get("assets")
-
-	zlog.S.Debugf("Header: %v, %v, %v, %v", r.Header, flags, scanType, sbom)
-
+	if s.config.App.Trace {
+		zlog.S.Debugf("Header: %v, flags: %v, type: %v, assets: %v", r.Header, flags, scanType, sbom)
+	}
+	// Check if we have an SBOM (and type) supplied
 	var sbomFilename string
 	if len(sbom) > 0 && len(scanType) > 0 {
 		if scanType != "identify" && scanType != "blacklist" { // Make sure we have a valid SBOM scan type
@@ -120,10 +122,17 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 			return
 		}
+		_, err = tempFile.WriteString(sbom + "\n")
+		if err != nil {
+			zlog.S.Errorf("Failed to write to temporary SBOM file: %v - %v", tempFile.Name(), err)
+			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
+			return
+		}
+		closeFile(tempFile)
 		if s.config.Scanning.TmpFileDelete {
 			defer removeFile(tempFile)
 		}
-		sbomFilename = tempFile.Name()
+		sbomFilename = tempFile.Name() // Save the SBOM filename
 	}
 	wfps := strings.Split(string(contentsTrimmed), "file=")
 	wfpCount := len(wfps) - 1 // First entry in the array is empty (hence the -1)
@@ -147,7 +156,13 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 		} else {
 			zlog.S.Infof("Scan completed")
-			fmt.Fprint(w, fmt.Sprintf("%s\n", strings.TrimSpace(result)))
+			response := strings.TrimSpace(result)
+			if len(response) == 0 {
+				zlog.S.Warnf("Nothing in the engine response")
+				http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
+			} else {
+				printResponse(w, fmt.Sprintf("%s\n", response))
+			}
 		}
 	} else {
 		// Multiple workers, create input and output channels
@@ -161,11 +176,12 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 		zlog.S.Debugf("Creating %v scanning workers...", numWorkers)
 		// Create workers
 		for i := 1; i <= numWorkers; i++ {
-			go s.workerScan(i, requests, results, flags, scanType, sbomFilename)
+			go s.workerScan(fmt.Sprintf("%d_%s", i, uuid.New().String()), requests, results, flags, scanType, sbomFilename)
 		}
 		requestCount := 0 // Count the number of actual requests sent
 		for _, wfp := range wfps {
-			if len(wfp) == 0 || wfp == "" { // Ignore empty requests
+			wfp = strings.TrimSpace(wfp)
+			if len(wfp) == 0 { // Ignore empty requests
 				continue
 			}
 			requests <- "file=" + wfp // Prepend the 'file=' back onto each WFP before submitting it
@@ -192,14 +208,16 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 			zlog.S.Errorf("Multi-engine scan failed to produce results")
 			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 		} else {
-			fmt.Fprint(w, "{"+strings.Join(responses, ",")+"}\n")
+			printResponse(w, "{"+strings.Join(responses, ",")+"}\n")
 		}
 	}
 }
 
 // workerScan attempts to process all incoming scanning jobs and dumps the results into the subsequent results channel
-func (s ScanningService) workerScan(id int, jobs <-chan string, results chan<- string, flags, sbomType, sbomFile string) {
-
+func (s ScanningService) workerScan(id string, jobs <-chan string, results chan<- string, flags, sbomType, sbomFile string) {
+	if s.config.App.Trace {
+		zlog.S.Debugf("Starting up scanning worker: %v", id)
+	}
 	for job := range jobs {
 		if s.config.App.Trace {
 			zlog.S.Debugf("Scanning (%v): '%v'", id, job)
@@ -229,6 +247,9 @@ func (s ScanningService) workerScan(id int, jobs <-chan string, results chan<- s
 			}
 		}
 	}
+	if s.config.App.Trace {
+		zlog.S.Debugf("Shutting down scanning worker: %v", id)
+	}
 }
 
 // scanWfp run the scanoss engine scan of the supplied WFP
@@ -247,8 +268,12 @@ func (s ScanningService) scanWfp(wfp, flags, sbomType, sbomFile string) (string,
 		defer removeFile(tempFile)
 	}
 	zlog.S.Debugf("Using temporary file: %v", tempFile.Name())
-	tempFile.WriteString(wfp + "\n")
-	tempFile.Close()
+	_, err = tempFile.WriteString(wfp + "\n")
+	if err != nil {
+		zlog.S.Errorf("Failed to write WFP to temporary file: %v", err)
+		return "", fmt.Errorf("failed to write to temporary WFP file")
+	}
+	closeFile(tempFile)
 	var args []string
 	if s.config.Scanning.ScanDebug {
 		args = append(args, "-d") // Set debug mode
@@ -271,13 +296,64 @@ func (s ScanningService) scanWfp(wfp, flags, sbomType, sbomFile string) (string,
 	}
 	args = append(args, "-w", tempFile.Name())
 	zlog.S.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
-	ctx, _ := context.WithTimeout(context.Background(), 120*time.Second) // put a timeout on the scan execution
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second) // put a timeout on the scan execution
+	defer cancel()
 	output, err := exec.CommandContext(ctx, s.config.Scanning.ScanBinary, args...).Output()
 	if err != nil {
 		zlog.S.Errorf("Scan command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)
+		zlog.S.Errorf("Command output: %s", bytes.TrimSpace(output))
+		if s.config.Scanning.KeepFailedWfps {
+			s.copyWfpTempFile(tempFile.Name())
+		}
 		return "", fmt.Errorf("failed to scan WFP: %v", err)
 	}
 	return string(output), nil
+}
+
+// printResponse sends the given response to the HTTP Response Writer
+func printResponse(w http.ResponseWriter, resp string) {
+	_, err := fmt.Fprint(w, resp)
+	if err != nil {
+		zlog.S.Errorf("Failed to write HTTP response: %v", err)
+	}
+}
+
+// closeMultipartFile closes the given multipart file
+func closeMultipartFile(f multipart.File) {
+	err := f.Close()
+	if err != nil {
+		zlog.S.Warnf("Problem closing multipart file: %v", err)
+	}
+}
+
+// copyWfpTempFile copies a 'failed' WFP scan file to another file for later review
+func (s ScanningService) copyWfpTempFile(filename string) {
+	zlog.S.Debugf("Backing up failed WFP file...")
+	source, err := os.Open(filename)
+	if err != nil {
+		zlog.S.Errorf("Failed to open file %v: %v", filename, err)
+		return
+	}
+	tempFile, err := os.CreateTemp(s.config.Scanning.WfpLoc, "failed-finger*.wfp")
+	if err != nil {
+		zlog.S.Errorf("Failed to create temporary file: %v", err)
+		return
+	}
+	defer closeFile(tempFile)
+	_, err = io.Copy(tempFile, source)
+	if err != nil {
+		zlog.S.Errorf("Failed to copy temporary file %v to %v: %v", filename, tempFile.Name(), err)
+		return
+	}
+	zlog.S.Warnf("Backed up failed WFP to: %v", tempFile.Name())
+}
+
+// closeFile closes the given file
+func closeFile(f *os.File) {
+	err := f.Close()
+	if err != nil {
+		zlog.S.Warnf("Problem closing file: %v - %v", f.Name(), err)
+	}
 }
 
 // removeFile removes the given file and warns if anything went wrong

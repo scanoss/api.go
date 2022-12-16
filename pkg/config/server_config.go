@@ -14,6 +14,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+// Package config contains all the logic required load configuration for the Server.
 package config
 
 import (
@@ -22,7 +23,7 @@ import (
 )
 
 const (
-	defaultGrpcPort = "8085"
+	defaultGrpcPort = "5443"
 )
 
 // ServerConfig is configuration for Server
@@ -41,12 +42,13 @@ type ServerConfig struct {
 		ConfigFile     string `env:"LOG_JSON_CONFIG"`
 	}
 	Scanning struct {
-		WfpLoc        string `env:"SCAN_WFP_TMP"` // specific location to write temporary WFP files to
-		ScanBinary    string `env:"SCAN_BINARY"`
-		ScanDebug     bool   `env:"SCAN_DEBUG"` // true/false
-		ScanFlags     int    `env:"SCAN_ENGINE_FLAGS"`
-		Workers       int    `env:"SCAN_WORKERS"`
-		TmpFileDelete bool   `env:"SCAN_TMP_DELETE"` // true/false
+		WfpLoc         string `env:"SCAN_WFP_TMP"` // specific location to write temporary WFP files to
+		ScanBinary     string `env:"SCAN_BINARY"`
+		ScanDebug      bool   `env:"SCAN_DEBUG"` // true/false
+		ScanFlags      int    `env:"SCAN_ENGINE_FLAGS"`
+		Workers        int    `env:"SCAN_WORKERS"`
+		TmpFileDelete  bool   `env:"SCAN_TMP_DELETE"`      // true/false
+		KeepFailedWfps bool   `env:"SCAN_KEEP_FAILED_WFP"` // true/false
 	}
 	Tls struct {
 		CertFile string `env:"SCAN_TLS_CERT"`
@@ -75,14 +77,10 @@ func NewServerConfig(feeders []config.Feeder) (*ServerConfig, error) {
 func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.App.Name = "SCANOSS API Server"
 	cfg.App.Port = defaultGrpcPort
-	cfg.App.Addr = ""
 	cfg.App.Mode = "dev"
-	cfg.App.Debug = false
 	cfg.Logging.DynamicPort = "localhost:60085"
-	cfg.Scanning.WfpLoc = ""
 	cfg.Scanning.ScanBinary = "scanoss"
 	cfg.Scanning.ScanFlags = 0
-	cfg.Scanning.ScanDebug = false
 	cfg.Scanning.TmpFileDelete = true
-	cfg.Scanning.Workers = 3
+	cfg.Scanning.Workers = 1 // Default to single threaded scanning
 }
