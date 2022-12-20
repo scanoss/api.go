@@ -35,6 +35,14 @@ import (
 	"time"
 )
 
+const (
+	ContentTypeKey  = "content-type"
+	RequestIdKey    = "x-request-id"
+	ResponseIdKey   = "x-response-id"
+	ApplicationJson = "application/json"
+	ReqLogKey       = "reqId"
+)
+
 type ScanningService struct {
 	config *myconfig.ServerConfig
 }
@@ -46,13 +54,12 @@ func NewScanningService(config *myconfig.ServerConfig) *ScanningService {
 // FileContents handles retrieval of sources file for a client
 func (s ScanningService) FileContents(w http.ResponseWriter, r *http.Request) {
 
-	reqId := strings.TrimSpace(r.Header.Get("x-request-d")) // Request ID
-	if len(reqId) == 0 {                                    // If no request id, create one
+	reqId := strings.TrimSpace(r.Header.Get(RequestIdKey)) // Request ID
+	if len(reqId) == 0 {                                   // If no request id, create one
 		reqId = uuid.NewString()
-		zlog.S.Debugf("Generating Request ID: %v", reqId)
 	}
-	w.Header().Set("x-response-id", reqId)
-	zs := sugaredLogger(context.WithValue(r.Context(), "reqId", reqId)) // Setup logger with context
+	w.Header().Set(ResponseIdKey, reqId)
+	zs := sugaredLogger(context.WithValue(r.Context(), ReqLogKey, reqId)) // Setup logger with context
 	vars := mux.Vars(r)
 	zs.Infof("%v request from %v - %v", r.URL.Path, r.RemoteAddr, vars)
 	if vars == nil || len(vars) == 0 {
@@ -91,13 +98,12 @@ func (s ScanningService) FileContents(w http.ResponseWriter, r *http.Request) {
 // ScanDirect handles WFP scanning requests from a client
 func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 
-	reqId := strings.TrimSpace(r.Header.Get("x-request-d")) // Request ID
-	if len(reqId) == 0 {                                    // If no request id, create one
+	reqId := strings.TrimSpace(r.Header.Get(RequestIdKey)) // Request ID
+	if len(reqId) == 0 {                                   // If no request id, create one
 		reqId = uuid.NewString()
-		zlog.S.Debugf("Generating Request ID: %v", reqId)
 	}
-	w.Header().Set("x-response-id", reqId)
-	zs := sugaredLogger(context.WithValue(r.Context(), "reqId", reqId)) // Setup logger with context
+	w.Header().Set(ResponseIdKey, reqId)
+	zs := sugaredLogger(context.WithValue(r.Context(), ReqLogKey, reqId)) // Setup logger with context
 	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -178,7 +184,7 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 				zs.Warnf("Nothing in the engine response")
 				http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 			} else {
-				w.Header().Set("content-type", "application/json")
+				w.Header().Set(ContentTypeKey, ApplicationJson)
 				printResponse(w, fmt.Sprintf("%s\n", response), zs)
 			}
 		}
@@ -244,7 +250,7 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 			zs.Errorf("Multi-engine scan failed to produce results")
 			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 		} else {
-			w.Header().Set("content-type", "application/json")
+			w.Header().Set(ContentTypeKey, ApplicationJson)
 			printResponse(w, "{"+strings.Join(responses, ",")+"}\n", zs)
 		}
 	}
@@ -409,8 +415,8 @@ func removeFile(f *os.File, zs *zap.SugaredLogger) {
 func sugaredLogger(ctx context.Context) *zap.SugaredLogger {
 	newLogger := zlog.L
 	if ctx != nil {
-		if ctxRqId, ok := ctx.Value("reqId").(string); ok {
-			newLogger = newLogger.With(zap.String("rqId", ctxRqId))
+		if ctxRqId, ok := ctx.Value(ReqLogKey).(string); ok {
+			newLogger = newLogger.With(zap.String(ReqLogKey, ctxRqId))
 		}
 		//if ctxSessionId, ok := ctx.Value(sessionIdKey).(string); ok {
 		//	newLogger = newLogger.With(zap.String("sessionId", ctxSessionId))
