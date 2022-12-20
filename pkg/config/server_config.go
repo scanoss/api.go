@@ -46,6 +46,8 @@ type ServerConfig struct {
 		ScanBinary     string `env:"SCAN_BINARY"`
 		ScanDebug      bool   `env:"SCAN_DEBUG"` // true/false
 		ScanFlags      int    `env:"SCAN_ENGINE_FLAGS"`
+		ScanTimeout    int    `env:"SCAN_ENGINE_TIMEOUT"` // timeout for waiting for the scan engine to respond
+		WfpGrouping    int    `env:"SCAN_WFP_GROUPING"`   // number of WFP to group into a single scan engine command
 		Workers        int    `env:"SCAN_WORKERS"`
 		TmpFileDelete  bool   `env:"SCAN_TMP_DELETE"`      // true/false
 		KeepFailedWfps bool   `env:"SCAN_KEEP_FAILED_WFP"` // true/false
@@ -82,5 +84,7 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Scanning.ScanBinary = "scanoss"
 	cfg.Scanning.ScanFlags = 0
 	cfg.Scanning.TmpFileDelete = true
-	cfg.Scanning.Workers = 1 // Default to single threaded scanning
+	cfg.Scanning.Workers = 1       // Default to single threaded scanning
+	cfg.Scanning.ScanTimeout = 120 // Default scan engine timeout to 2 minutes
+	cfg.Scanning.WfpGrouping = 3   // Default number of WFPs to group into a single scan request (when Workers > 1)
 }
