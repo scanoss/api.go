@@ -24,3 +24,5 @@
 
 # Ingore the version text file. only used during build
 version.txt
+
+local-build-commands.txt
