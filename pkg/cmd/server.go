@@ -109,5 +109,7 @@ func RunServer() error {
 		zlog.S.Infof("Use the following to get the current status: curl -X GET %v/log/level", cfg.Logging.DynamicPort)
 		zlog.S.Infof("Use the following to set the current status: curl -X PUT %v/log/level -d level=debug", cfg.Logging.DynamicPort)
 	}
+	zlog.S.Infof("Running with %v worker(s) per scan request", cfg.Scanning.Workers)
+	zlog.S.Infof("Running with config: %+v", *cfg)
 	return rest.RunServer(cfg)
 }
