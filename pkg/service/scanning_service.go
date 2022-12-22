@@ -178,7 +178,7 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 			zs.Errorf("Engine scan failed: %v", err)
 			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 		} else {
-			zs.Infof("Scan completed")
+			zs.Debug("Scan completed")
 			response := strings.TrimSpace(result)
 			if len(response) == 0 {
 				zs.Warnf("Nothing in the engine response")
