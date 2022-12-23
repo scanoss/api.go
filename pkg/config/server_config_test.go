@@ -17,6 +17,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
@@ -40,7 +41,15 @@ func TestServerConfig(t *testing.T) {
 	fmt.Printf("Server Config1: %+v\n", cfg)
 	err = os.Unsetenv("APP_ADDR")
 	if err != nil {
-		fmt.Printf("Warning: Problem runn Unsetenv: %v\n", err)
+		fmt.Printf("Warning: Problem running Unsetenv: %v\n", err)
+	}
+	js, err := json.MarshalIndent(cfg, "", "   ")
+	if err == nil {
+		fmt.Printf("Config JSON:\n------\n")
+		fmt.Println(string(js))
+		fmt.Println("------")
+	} else {
+		fmt.Printf("Warning: Problem producing json: %v\n", err)
 	}
 }
 

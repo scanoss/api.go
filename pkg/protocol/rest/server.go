@@ -65,24 +65,24 @@ func RunServer(config *myconfig.ServerConfig) error {
 		Handler: router,
 		Addr:    fmt.Sprintf("%s:%s", config.App.Addr, config.App.Port),
 	}
+	router.HandleFunc("/api/health", service.HealthCheck).Methods(http.MethodGet)
+	router.HandleFunc("/api/health-check", service.HealthCheck).Methods(http.MethodGet)
+	router.HandleFunc("/api/metrics/{type}", service.MetricsHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/scan/direct", scanningService.ScanDirect).Methods(http.MethodPost)
 	router.HandleFunc("/api/file_contents/{md5}", scanningService.FileContents).Methods(http.MethodGet)
+	//router.HandleFunc("/api/sbom/attribution", scanningService.FileContents).Methods(http.MethodPost)
 	// Open TCP port (in the background) and listen for requests
 	go func() {
+		var httpErr error
 		if startTls {
 			zlog.S.Infof("starting REST server with TLS on %v ...", srv.Addr)
-			if err := srv.ListenAndServeTLS(config.Tls.CertFile, config.Tls.KeyFile); err != nil {
-				if fmt.Sprintf("%s", err) != "http: Server closed" {
-					zlog.S.Panicf("issue encountered when starting service: %v", err)
-				}
-			}
+			httpErr = srv.ListenAndServeTLS(config.Tls.CertFile, config.Tls.KeyFile)
 		} else {
 			zlog.S.Infof("starting REST server on %v ...", srv.Addr)
-			if err := srv.ListenAndServe(); err != nil {
-				if fmt.Sprintf("%s", err) != "http: Server closed" {
-					zlog.S.Panicf("issue encountered when starting service: %v", err)
-				}
-			}
+			httpErr = srv.ListenAndServe()
+		}
+		if httpErr != nil && fmt.Sprintf("%s", httpErr) != "http: Server closed" {
+			zlog.S.Panicf("issue encountered when starting service: %v", httpErr)
 		}
 	}()
 	// graceful shutdown

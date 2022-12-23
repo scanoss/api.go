@@ -14,7 +14,6 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package service handles all the REST scanning requests
 package service
 
 import (
@@ -53,7 +52,7 @@ func NewScanningService(config *myconfig.ServerConfig) *ScanningService {
 
 // FileContents handles retrieval of sources file for a client
 func (s ScanningService) FileContents(w http.ResponseWriter, r *http.Request) {
-
+	counters.incRequest("file_contents")
 	reqId := strings.TrimSpace(r.Header.Get(RequestIdKey)) // Request ID
 	if len(reqId) == 0 {                                   // If no request id, create one
 		reqId = uuid.NewString()
@@ -97,7 +96,7 @@ func (s ScanningService) FileContents(w http.ResponseWriter, r *http.Request) {
 
 // ScanDirect handles WFP scanning requests from a client
 func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
-
+	counters.incRequest("scan")
 	reqId := strings.TrimSpace(r.Header.Get(RequestIdKey)) // Request ID
 	if len(reqId) == 0 {                                   // If no request id, create one
 		reqId = uuid.NewString()
