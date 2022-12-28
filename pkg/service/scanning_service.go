@@ -352,6 +352,23 @@ func (s ScanningService) scanWfp(wfp, flags, sbomType, sbomFile string, zs *zap.
 	return string(output), nil
 }
 
+// TestEngine tests if the SCANOSS engine is accessible and running
+func (s ScanningService) TestEngine() error {
+	zlog.S.Infof("Testing engine command: %v", s.config.Scanning.ScanBinary)
+	var args []string
+	args = append(args, "-h")
+	zlog.S.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // put a timeout on the scanoss execution
+	defer cancel()
+	output, err := exec.CommandContext(ctx, s.config.Scanning.ScanBinary, args...).Output()
+	if err != nil {
+		zlog.S.Errorf("Scan test command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)
+		zlog.S.Errorf("Command output: %s", bytes.TrimSpace(output))
+		return fmt.Errorf("failed to test scan engine: %v", err)
+	}
+	return nil
+}
+
 // printResponse sends the given response to the HTTP Response Writer
 func printResponse(w http.ResponseWriter, resp string, zs *zap.SugaredLogger) {
 	_, err := fmt.Fprint(w, resp)

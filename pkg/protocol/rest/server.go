@@ -59,6 +59,10 @@ func RunServer(config *myconfig.ServerConfig) error {
 		startTls = true
 	}
 	scanningService := service.NewScanningService(config)
+	if err := scanningService.TestEngine(); err != nil {
+		zlog.S.Warnf("Scanning engine test failed. Scan requests are likely to fail.")
+		zlog.S.Warnf("Please make sure that %v is accessible", config.Scanning.ScanBinary)
+	}
 	// Set up the endpoint routing
 	router := mux.NewRouter().StrictSlash(true)
 	srv := &http.Server{

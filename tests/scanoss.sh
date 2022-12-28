@@ -17,6 +17,12 @@
 ###
 
 # Simulate getting file contents
+if [ "$1" == "-h" ] || [ "$2" == "-h" ]; then
+  echo "SCANOSS engine help"
+  echo " command options..."
+  exit 0
+fi
+# Simulate getting file contents
 if [ "$1" == "-k" ] || [ "$2" == "-k" ]; then
   if [ "x$3" == "x" ] ; then
     md5=$2
