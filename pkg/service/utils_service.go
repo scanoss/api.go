@@ -42,6 +42,17 @@ func (c *counterStruct) incRequest(key string) {
 	c.values[key]++
 }
 
+// WelcomeMsg responds with a welcome to the SCANOSS API
+func WelcomeMsg(w http.ResponseWriter, r *http.Request) {
+	zlog.S.Debugf("%v request from %v", r.URL.Path, r.RemoteAddr)
+	w.Header().Set(ContentTypeKey, ApplicationJson)
+	w.WriteHeader(http.StatusOK)
+	_, err := fmt.Fprintln(w, `{"msg": "Hello from the SCANOSS Scanning API"}`)
+	if err != nil {
+		zlog.S.Errorf("Failed to write HTTP response: %v", err)
+	}
+}
+
 // HealthCheck responds with the health of the service
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	zlog.S.Debugf("%v request from %v", r.URL.Path, r.RemoteAddr)

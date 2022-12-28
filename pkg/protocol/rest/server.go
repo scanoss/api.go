@@ -65,6 +65,8 @@ func RunServer(config *myconfig.ServerConfig) error {
 		Handler: router,
 		Addr:    fmt.Sprintf("%s:%s", config.App.Addr, config.App.Port),
 	}
+	router.HandleFunc("/", service.WelcomeMsg).Methods(http.MethodGet)
+	router.HandleFunc("/api/", service.WelcomeMsg).Methods(http.MethodGet)
 	router.HandleFunc("/api/health", service.HealthCheck).Methods(http.MethodGet)
 	router.HandleFunc("/api/health-check", service.HealthCheck).Methods(http.MethodGet)
 	router.HandleFunc("/api/metrics/{type}", service.MetricsHandler).Methods(http.MethodGet)
