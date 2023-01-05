@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/mux"
+	"github.com/jpillora/ipfilter"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"net/http"
 	"os"
@@ -58,6 +59,38 @@ func RunServer(config *myconfig.ServerConfig) error {
 		}
 		startTls = true
 	}
+	var allowedIPs []string
+	if len(config.Filtering.AllowListFile) > 0 {
+		cf, err := checkFile(config.Filtering.AllowListFile)
+		if err != nil || !cf {
+			zlog.S.Errorf("Allow List file is not accessible: %v", config.Filtering.AllowListFile)
+			if err != nil {
+				return err
+			} else {
+				return fmt.Errorf("allow list file not accesible: %v", config.Filtering.AllowListFile)
+			}
+		}
+		allowedIPs, err = myconfig.LoadFile(config.Filtering.AllowListFile)
+		if err != nil {
+			return err
+		}
+	}
+	var deniedIPs []string
+	if len(config.Filtering.DenyListFile) > 0 {
+		cf, err := checkFile(config.Filtering.DenyListFile)
+		if err != nil || !cf {
+			zlog.S.Errorf("Deny List file is not accessible: %v", config.Filtering.DenyListFile)
+			if err != nil {
+				return err
+			} else {
+				return fmt.Errorf("deny list file not accesible: %v", config.Filtering.DenyListFile)
+			}
+		}
+		deniedIPs, err = myconfig.LoadFile(config.Filtering.DenyListFile)
+		if err != nil {
+			return err
+		}
+	}
 	scanningService := service.NewScanningService(config)
 	if err := scanningService.TestEngine(); err != nil {
 		zlog.S.Warnf("Scanning engine test failed. Scan requests are likely to fail.")
@@ -65,10 +98,6 @@ func RunServer(config *myconfig.ServerConfig) error {
 	}
 	// Set up the endpoint routing
 	router := mux.NewRouter().StrictSlash(true)
-	srv := &http.Server{
-		Handler: router,
-		Addr:    fmt.Sprintf("%s:%s", config.App.Addr, config.App.Port),
-	}
 	router.HandleFunc("/", service.WelcomeMsg).Methods(http.MethodGet)
 	router.HandleFunc("/api/", service.WelcomeMsg).Methods(http.MethodGet)
 	router.HandleFunc("/api/health", service.HealthCheck).Methods(http.MethodGet)
@@ -77,6 +106,17 @@ func RunServer(config *myconfig.ServerConfig) error {
 	router.HandleFunc("/api/scan/direct", scanningService.ScanDirect).Methods(http.MethodPost)
 	router.HandleFunc("/api/file_contents/{md5}", scanningService.FileContents).Methods(http.MethodGet)
 	//router.HandleFunc("/api/sbom/attribution", scanningService.FileContents).Methods(http.MethodPost)
+	srv := &http.Server{
+		Handler: router,
+		Addr:    fmt.Sprintf("%s:%s", config.App.Addr, config.App.Port),
+	}
+	if len(allowedIPs) > 0 || len(deniedIPs) > 0 { // Configure the list of allowed/denied IPs to connect
+		zlog.S.Debugf("Filtering requests by allowed: %v, denied: %v, block-by-default: %v", allowedIPs, deniedIPs, config.Filtering.BlockByDefault)
+		handler := ipfilter.Wrap(router, ipfilter.Options{AllowedIPs: allowedIPs, BlockedIPs: deniedIPs,
+			BlockByDefault: config.Filtering.BlockByDefault, TrustProxy: config.Filtering.TrustProxy,
+		})
+		srv.Handler = handler // assign the filtered handler
+	}
 	// Open TCP port (in the background) and listen for requests
 	go func() {
 		var httpErr error

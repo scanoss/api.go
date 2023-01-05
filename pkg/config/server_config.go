@@ -18,8 +18,12 @@
 package config
 
 import (
+	"bufio"
+	"fmt"
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
+	"os"
+	"strings"
 )
 
 const (
@@ -56,6 +60,12 @@ type ServerConfig struct {
 		CertFile string `env:"SCAN_TLS_CERT"`
 		KeyFile  string `env:"SCAN_TLS_KEY"`
 	}
+	Filtering struct {
+		AllowListFile  string `env:"SCAN_ALLOW_LIST"`
+		DenyListFile   string `env:"SCAN_DENY_LIST"`
+		BlockByDefault bool   `env:"SCAN_BLOCK_BY_DEFAULT"`
+		TrustProxy     bool   `env:"SCAN_TRUST_PROXY"`
+	}
 }
 
 // NewServerConfig loads all config options and return a struct for use
@@ -87,4 +97,28 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Scanning.Workers = 1       // Default to single threaded scanning
 	cfg.Scanning.ScanTimeout = 120 // Default scan engine timeout to 2 minutes
 	cfg.Scanning.WfpGrouping = 3   // Default number of WFPs to group into a single scan request (when Workers > 1)
+}
+
+// LoadFile loads the specified file and returns its contents in a string array
+func LoadFile(filename string) ([]string, error) {
+	if len(filename) == 0 {
+		return nil, fmt.Errorf("no file supplied to load")
+	}
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %v - %v", filename, err)
+	}
+	defer func(file *os.File) {
+		_ = file.Close()
+	}(file)
+	fileScanner := bufio.NewScanner(file)
+	fileScanner.Split(bufio.ScanLines)
+	var list []string
+	for fileScanner.Scan() {
+		line := strings.TrimSpace(fileScanner.Text())
+		if len(line) > 0 && !strings.HasPrefix(line, "#") {
+			list = append(list, line)
+		}
+	}
+	return list, nil
 }

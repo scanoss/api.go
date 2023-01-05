@@ -88,3 +88,26 @@ func TestServerConfigJson(t *testing.T) {
 	}
 	fmt.Printf("Server Config3: %+v\n", cfg)
 }
+
+func TestServerConfigLoadFile(t *testing.T) {
+
+	res, err := LoadFile("")
+	if err == nil {
+		t.Errorf("Did not get expected error when loading a file")
+	}
+	filename := "./test/does-not-exist.txt"
+	res, err = LoadFile(filename)
+	if err == nil {
+		t.Errorf("Did not get expected error when loading a file: %v", filename)
+	}
+	filename = "./tests/allow_list.txt"
+	res, err = LoadFile(filename)
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when loading a data file", err)
+	}
+	if len(res) == 0 {
+		t.Errorf("No data decoded from data file: %v", filename)
+	} else {
+		fmt.Printf("Data File details: %+v\n", res)
+	}
+}
