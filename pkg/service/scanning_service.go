@@ -133,11 +133,21 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ERROR no WFP contents supplied", http.StatusBadRequest)
 		return
 	}
-	flags := strings.TrimSpace(r.Header.Get("flags"))   // Scanning flags
-	scanType := strings.TrimSpace(r.Header.Get("type")) // SBOM type
-	sbom := strings.TrimSpace(r.Header.Get("assets"))   // SBOM contents
+	flags := strings.TrimSpace(r.FormValue("flags"))   // Check form for Scanning flags
+	scanType := strings.TrimSpace(r.FormValue("type")) // Check form for SBOM type
+	sbom := strings.TrimSpace(r.FormValue("assets"))   // Check form for SBOM contents
+	// TODO is it necessary to check the header also for these values?
+	if len(flags) == 0 {
+		flags = strings.TrimSpace(r.Header.Get("flags")) // Check header for Scanning flags
+	}
+	if len(scanType) == 0 {
+		scanType = strings.TrimSpace(r.Header.Get("type")) // Check header for SBOM type
+	}
+	if len(sbom) == 0 {
+		sbom = strings.TrimSpace(r.Header.Get("assets")) // Check header for SBOM contents
+	}
 	if s.config.App.Trace {
-		zs.Debugf("Header: %v, flags: %v, type: %v, assets: %v", r.Header, flags, scanType, sbom)
+		zs.Debugf("Header: %v, Form: %v, flags: %v, type: %v, assets: %v", r.Header, r.Form, flags, scanType, sbom)
 	}
 	// Check if we have an SBOM (and type) supplied
 	var sbomFilename string
