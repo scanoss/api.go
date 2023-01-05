@@ -104,16 +104,26 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(ResponseIdKey, reqId)
 	zs := sugaredLogger(context.WithValue(r.Context(), ReqLogKey, reqId)) // Setup logger with context
 	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
-	file, _, err := r.FormFile("file")
-	if err != nil {
-		zs.Errorf("Failed to retrieve WFP file: %v", err)
-		http.Error(w, "ERROR receiving WFP file", http.StatusBadRequest)
-		return
+	var contents []byte
+	var err error
+	formFiles := []string{"file", "filename"}
+	for _, fName := range formFiles { // Check for the WFP contents in 'file' and 'filename'
+		var file multipart.File
+		file, _, err = r.FormFile(fName)
+		if err != nil {
+			zs.Infof("Cannot retrieve WFP Form File: %v - %v. Trying an alternative name...", fName, err)
+			continue
+		}
+		contents, err = io.ReadAll(file) // Load the file (WFP) contents into memory
+		closeMultipartFile(file, zs)
+		if err == nil {
+			break // We have successfully gotten the file contents
+		} else {
+			zs.Infof("Cannot retrieve WFP Form File (%v) contents: %v. Trying an alternative name...", file, err)
+		}
 	}
-	defer closeMultipartFile(file, zs)
-	contents, err := io.ReadAll(file) // Load the file (WFP) contents into memory
 	if err != nil {
-		zs.Errorf("Failed to retrieve WFP file contents: %v", err)
+		zs.Errorf("Failed to retrieve WFP file contents (using %v): %v", formFiles, err)
 		http.Error(w, "ERROR receiving WFP file contents", http.StatusBadRequest)
 		return
 	}
@@ -217,8 +227,6 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 				requestCount++
 				wfpRequests = wfpRequests[:0] // reset to empty (keeping the memory allocation)
 			}
-			//requests <- "file=" + wfp // Prepend the 'file=' back onto each WFP before submitting it
-			//requestCount++
 		}
 		if len(wfpRequests) > 0 { // Submit the last unassigned WFPs to a request
 			if s.config.App.Trace {
@@ -321,9 +329,11 @@ func (s ScanningService) scanWfp(wfp, flags, sbomType, sbomFile string, zs *zap.
 		args = append(args, "-d") // Set debug mode
 	}
 	if s.config.Scanning.ScanFlags > 0 { // Set system flags if enabled
-		args = append(args, "-F", fmt.Sprintf("%v", s.config.Scanning.ScanFlags))
+		//args = append(args, "-F", fmt.Sprintf("%v", s.config.Scanning.ScanFlags))
+		args = append(args, fmt.Sprintf("-F %v", s.config.Scanning.ScanFlags))
 	} else if len(flags) > 0 && flags != "0" { // Set user supplied flags if enabled
-		args = append(args, "-F", flags)
+		//args = append(args, "-F", flags)
+		args = append(args, fmt.Sprintf("-F %s", flags))
 	}
 	if len(sbomFile) > 0 && len(sbomType) > 0 { // Add SBOM to scanning process
 		switch sbomType {
