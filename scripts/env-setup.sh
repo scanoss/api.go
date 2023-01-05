@@ -39,11 +39,24 @@ if ! mkdir -p /var/log/scanoss/api ; then
   exit 1
 fi
 if [ "$RUNTIME_USER" != "root" ] ; then
-  echo "Changing ownership to $RUNTIME_USER ..."
-  if ! chown -R $RUNTIME_USER /var/log/scanoss ; then
-    echo "chown failed"
+  export LOG_DIR=/var/log/scanoss
+  echo "Changing ownership of $LOG_DIR to $RUNTIME_USER ..."
+  if ! chown -R $RUNTIME_USER $LOG_DIR ; then
+    echo "chown of $LOG_DIR to $RUNTIME_USER failed"
     exit 1
   fi
+  export LDB=/var/lib/ldb
+  cur_dir=$(pwd)
+  if ! cd $LDB ; then
+    echo "cannot access $LDB"
+    exit 1
+  fi
+  echo "Changing ownership of $LDB to $RUNTIME_USER ..."
+  if ! chown -R $RUNTIME_USER . ; then
+    echo "chown of $LDB to $RUNTIME_USER failed"
+    exit 1
+  fi
+  cd $cur_dir
 fi
 export service_stopped=""
 if [ -f /etc/systemd/system/scanoss-go-api.service ] ; then
