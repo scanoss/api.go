@@ -17,13 +17,41 @@
 package service
 
 import (
+	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"go.uber.org/zap"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"os"
 	"runtime"
+	myconfig "scanoss.com/go-api/pkg/config"
+	"strings"
 	"sync"
 )
+
+// Constants for use through the API services
+const (
+	ContentTypeKey  = "content-type"
+	RequestIdKey    = "x-request-id"
+	ResponseIdKey   = "x-response-id"
+	ApplicationJson = "application/json"
+	TextPlain       = "text/plain"
+	ReqLogKey       = "reqId"
+)
+
+// ApiService details
+type ApiService struct {
+	config *myconfig.ServerConfig
+}
+
+// NewApiService instantiates an API Service instance for servicing the API requests
+func NewApiService(config *myconfig.ServerConfig) *ApiService {
+	return &ApiService{config: config}
+}
 
 // Structure for counting the total number of requests processed
 type counterStruct struct {
@@ -88,7 +116,9 @@ func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 		return fmt.Sprintf("{\"alloc\": \"%.2f MiB\", \"total-alloc\": \"%.2f MiB\", \"sys\": \"%.2f MiB\"}", bToMb(m.Alloc), bToMb(m.TotalAlloc), bToMb(m.Sys))
 	}
 	reqCount := func() string {
-		return fmt.Sprintf("{\"scan\": %v, \"file_contents\": %v}", counters.values["scan"], counters.values["file_contents"])
+		return fmt.Sprintf("{\"scan\": %v, \"file_contents\": %v, \"attribution\": %v, \"license_details\": %v}",
+			counters.values["scan"], counters.values["file_contents"], counters.values["attribution"],
+			counters.values["license_details"])
 	}
 	// Get the number of goroutines
 	routines := func() string {
@@ -116,4 +146,85 @@ func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		zlog.S.Errorf("Failed to write HTTP response: %v", err)
 	}
+}
+
+// printResponse sends the given response to the HTTP Response Writer
+func printResponse(w http.ResponseWriter, resp string, zs *zap.SugaredLogger) {
+	_, err := fmt.Fprint(w, resp)
+	if err != nil {
+		zs.Errorf("Failed to write HTTP response: %v", err)
+	} else {
+		zs.Infof("responded")
+	}
+}
+
+// closeMultipartFile closes the given multipart file
+func closeMultipartFile(f multipart.File, zs *zap.SugaredLogger) {
+	err := f.Close()
+	if err != nil {
+		zs.Warnf("Problem closing multipart file: %v", err)
+	}
+}
+
+// copyWfpTempFile copies a 'failed' WFP scan file to another file for later review
+func (s ApiService) copyWfpTempFile(filename string, zs *zap.SugaredLogger) {
+	zs.Debugf("Backing up failed WFP file...")
+	source, err := os.Open(filename)
+	if err != nil {
+		zs.Errorf("Failed to open file %v: %v", filename, err)
+		return
+	}
+	tempFile, err := os.CreateTemp(s.config.Scanning.WfpLoc, "failed-finger*.wfp")
+	if err != nil {
+		zs.Errorf("Failed to create temporary file: %v", err)
+		return
+	}
+	defer closeFile(tempFile, zs)
+	_, err = io.Copy(tempFile, source)
+	if err != nil {
+		zs.Errorf("Failed to copy temporary file %v to %v: %v", filename, tempFile.Name(), err)
+		return
+	}
+	zs.Warnf("Backed up failed WFP to: %v", tempFile.Name())
+}
+
+// closeFile closes the given file
+func closeFile(f *os.File, zs *zap.SugaredLogger) {
+	err := f.Close()
+	if err != nil {
+		zs.Warnf("Problem closing file: %v - %v", f.Name(), err)
+	}
+}
+
+// removeFile removes the given file and warns if anything went wrong
+func removeFile(f *os.File, zs *zap.SugaredLogger) {
+	err := os.Remove(f.Name())
+	if err != nil {
+		zs.Warnf("Problem removing temp file: %v - %v", f.Name(), err)
+	} else {
+		zs.Debugf("Removed temporary file: %v", f.Name())
+	}
+}
+
+// getReqId extracts the request id from the header and if not creates one and returns it
+func getReqId(r *http.Request) string {
+	reqId := strings.TrimSpace(r.Header.Get(RequestIdKey)) // Request ID
+	if len(reqId) == 0 {                                   // If no request id, create one
+		reqId = uuid.NewString()
+	}
+	return reqId
+}
+
+// sugaredLogger returns a zap logger with as much context as possible
+func sugaredLogger(ctx context.Context) *zap.SugaredLogger {
+	newLogger := zlog.L
+	if ctx != nil {
+		if ctxRqId, ok := ctx.Value(ReqLogKey).(string); ok {
+			newLogger = newLogger.With(zap.String(ReqLogKey, ctxRqId))
+		}
+		//if ctxSessionId, ok := ctx.Value(sessionIdKey).(string); ok {
+		//	newLogger = newLogger.With(zap.String("sessionId", ctxSessionId))
+		//}
+	}
+	return newLogger.Sugar()
 }

@@ -21,7 +21,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
-	"github.com/gorilla/mux"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"go.uber.org/zap"
 	"io"
@@ -29,78 +28,14 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	myconfig "scanoss.com/go-api/pkg/config"
 	"strings"
 	"time"
 )
 
-const (
-	ContentTypeKey  = "content-type"
-	RequestIdKey    = "x-request-id"
-	ResponseIdKey   = "x-response-id"
-	ApplicationJson = "application/json"
-	ReqLogKey       = "reqId"
-)
-
-type ScanningService struct {
-	config *myconfig.ServerConfig
-}
-
-func NewScanningService(config *myconfig.ServerConfig) *ScanningService {
-	return &ScanningService{config: config}
-}
-
-// FileContents handles retrieval of sources file for a client
-func (s ScanningService) FileContents(w http.ResponseWriter, r *http.Request) {
-	counters.incRequest("file_contents")
-	reqId := strings.TrimSpace(r.Header.Get(RequestIdKey)) // Request ID
-	if len(reqId) == 0 {                                   // If no request id, create one
-		reqId = uuid.NewString()
-	}
-	w.Header().Set(ResponseIdKey, reqId)
-	zs := sugaredLogger(context.WithValue(r.Context(), ReqLogKey, reqId)) // Setup logger with context
-	vars := mux.Vars(r)
-	zs.Infof("%v request from %v - %v", r.URL.Path, r.RemoteAddr, vars)
-	if vars == nil || len(vars) == 0 {
-		zs.Errorf("Failed to retrieve request variables")
-		http.Error(w, "ERROR no request variables submitted", http.StatusBadRequest)
-	}
-	md5, ok := vars["md5"]
-	if !ok {
-		zs.Errorf("Failed to retrieve md5 request variable from: %v", vars)
-		http.Error(w, "ERROR no md5 request variable submitted", http.StatusBadRequest)
-	}
-	zs.Debugf("Retrieving contents for %v", md5)
-	var args []string
-	if s.config.Scanning.ScanDebug {
-		args = append(args, "-d")
-	}
-	args = append(args, "-k", md5)
-	zs.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // put a timeout on the scan execution
-	defer cancel()
-	output, err := exec.CommandContext(ctx, s.config.Scanning.ScanBinary, args...).Output()
-	if err != nil {
-		zs.Errorf("Contents command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)
-		zs.Errorf("Command output: %s", bytes.TrimSpace(output))
-		http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
-		return
-	}
-	if s.config.App.Trace {
-		zs.Debugf("Sending back contents: %v - '%s'", len(output), output)
-	} else {
-		zs.Debugf("Sending back contents: %v", len(output))
-	}
-	printResponse(w, string(output), zs)
-}
-
 // ScanDirect handles WFP scanning requests from a client
-func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
+func (s ApiService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 	counters.incRequest("scan")
-	reqId := strings.TrimSpace(r.Header.Get(RequestIdKey)) // Request ID
-	if len(reqId) == 0 {                                   // If no request id, create one
-		reqId = uuid.NewString()
-	}
+	reqId := getReqId(r)
 	w.Header().Set(ResponseIdKey, reqId)
 	zs := sugaredLogger(context.WithValue(r.Context(), ReqLogKey, reqId)) // Setup logger with context
 	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
@@ -122,6 +57,7 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 			zs.Infof("Cannot retrieve WFP Form File (%v) contents: %v. Trying an alternative name...", file, err)
 		}
 	}
+	// Make sure we have actually got a WFP file to scan
 	if err != nil {
 		zs.Errorf("Failed to retrieve WFP file contents (using %v): %v", formFiles, err)
 		http.Error(w, "ERROR receiving WFP file contents", http.StatusBadRequest)
@@ -274,7 +210,7 @@ func (s ScanningService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 }
 
 // workerScan attempts to process all incoming scanning jobs and dumps the results into the subsequent results channel
-func (s ScanningService) workerScan(id string, jobs <-chan string, results chan<- string, flags, sbomType, sbomFile string, zs *zap.SugaredLogger) {
+func (s ApiService) workerScan(id string, jobs <-chan string, results chan<- string, flags, sbomType, sbomFile string, zs *zap.SugaredLogger) {
 	if s.config.App.Trace {
 		zs.Debugf("Starting up scanning worker: %v", id)
 	}
@@ -313,7 +249,7 @@ func (s ScanningService) workerScan(id string, jobs <-chan string, results chan<
 }
 
 // scanWfp run the scanoss engine scan of the supplied WFP
-func (s ScanningService) scanWfp(wfp, flags, sbomType, sbomFile string, zs *zap.SugaredLogger) (string, error) {
+func (s ApiService) scanWfp(wfp, flags, sbomType, sbomFile string, zs *zap.SugaredLogger) (string, error) {
 
 	if len(wfp) == 0 {
 		zs.Warnf("Nothing in the job request to scan. Ignoring")
@@ -373,7 +309,7 @@ func (s ScanningService) scanWfp(wfp, flags, sbomType, sbomFile string, zs *zap.
 }
 
 // TestEngine tests if the SCANOSS engine is accessible and running
-func (s ScanningService) TestEngine() error {
+func (s ApiService) TestEngine() error {
 	zlog.S.Infof("Testing engine command: %v", s.config.Scanning.ScanBinary)
 	var args []string
 	args = append(args, "-h")
@@ -387,76 +323,4 @@ func (s ScanningService) TestEngine() error {
 		return fmt.Errorf("failed to test scan engine: %v", err)
 	}
 	return nil
-}
-
-// printResponse sends the given response to the HTTP Response Writer
-func printResponse(w http.ResponseWriter, resp string, zs *zap.SugaredLogger) {
-	_, err := fmt.Fprint(w, resp)
-	if err != nil {
-		zs.Errorf("Failed to write HTTP response: %v", err)
-	} else {
-		zs.Infof("responded")
-	}
-}
-
-// closeMultipartFile closes the given multipart file
-func closeMultipartFile(f multipart.File, zs *zap.SugaredLogger) {
-	err := f.Close()
-	if err != nil {
-		zs.Warnf("Problem closing multipart file: %v", err)
-	}
-}
-
-// copyWfpTempFile copies a 'failed' WFP scan file to another file for later review
-func (s ScanningService) copyWfpTempFile(filename string, zs *zap.SugaredLogger) {
-	zs.Debugf("Backing up failed WFP file...")
-	source, err := os.Open(filename)
-	if err != nil {
-		zs.Errorf("Failed to open file %v: %v", filename, err)
-		return
-	}
-	tempFile, err := os.CreateTemp(s.config.Scanning.WfpLoc, "failed-finger*.wfp")
-	if err != nil {
-		zs.Errorf("Failed to create temporary file: %v", err)
-		return
-	}
-	defer closeFile(tempFile, zs)
-	_, err = io.Copy(tempFile, source)
-	if err != nil {
-		zs.Errorf("Failed to copy temporary file %v to %v: %v", filename, tempFile.Name(), err)
-		return
-	}
-	zs.Warnf("Backed up failed WFP to: %v", tempFile.Name())
-}
-
-// closeFile closes the given file
-func closeFile(f *os.File, zs *zap.SugaredLogger) {
-	err := f.Close()
-	if err != nil {
-		zs.Warnf("Problem closing file: %v - %v", f.Name(), err)
-	}
-}
-
-// removeFile removes the given file and warns if anything went wrong
-func removeFile(f *os.File, zs *zap.SugaredLogger) {
-	err := os.Remove(f.Name())
-	if err != nil {
-		zs.Warnf("Problem removing temp file: %v - %v", f.Name(), err)
-	} else {
-		zs.Debugf("Removed temporary file: %v", f.Name())
-	}
-}
-
-// sugaredLogger returns a zap logger with as much context as possible
-func sugaredLogger(ctx context.Context) *zap.SugaredLogger {
-	newLogger := zlog.L
-	if ctx != nil {
-		if ctxRqId, ok := ctx.Value(ReqLogKey).(string); ok {
-			newLogger = newLogger.With(zap.String(ReqLogKey, ctxRqId))
-		}
-		//if ctxSessionId, ok := ctx.Value(sessionIdKey).(string); ok {
-		//	newLogger = newLogger.With(zap.String("sessionId", ctxSessionId))
-		//}
-	}
-	return newLogger.Sugar()
 }

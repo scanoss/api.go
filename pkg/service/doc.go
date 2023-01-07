@@ -16,10 +16,10 @@
 
 // Package service handles all the REST requests
 // This is currently broken into:
-// - Scanning Requests
-//   - WFP
-//   - File Contents
-//   - Attribution
+// - Scanning Requests - WFP
+// - File Contents
+// - Attribution
+// - License Details
 //
 // - Utility Requests
 //   - Health

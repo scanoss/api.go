@@ -35,6 +35,30 @@ if [ "$1" == "-k" ] || [ "$2" == "-k" ]; then
   exit 0
 fi
 
+# Simulate getting SBOM attribution
+if [ "$1" == "-a" ] || [ "$2" == "-a" ]; then
+  if [ "x$3" == "x" ] ; then
+    sbom=$2
+  else
+    sbom=$3
+  fi
+  echo "attribution: $sbom"
+  echo "line 2"
+  echo "line 3"
+  exit 0
+fi
+
+# Simulate getting license details
+if [ "$1" == "-l" ] || [ "$2" == "-l" ]; then
+  if [ "x$3" == "x" ] ; then
+    license=$2
+  else
+    license=$3
+  fi
+  echo "{\"$license\": {\"patent_hints\": "yes", \"copyleft\": \"no\", \"checklist_url\": \"https://www.osadl.org/fileadmin/checklists/unreflicenses/Apache-2.0.txt\",\"osadl_updated\": \"2022-12-12T13:47:00+00:00\"}}"
+  exit 0
+fi
+
 # Simulate return a scan result
 if [ "$1" == "-w" ] || [ "$2" == "-w" ] || [ "$3" == "-w" ] || [ "$4" == "-w" ] || [ "$5" == "-w" ] || [ "$6" == "-w" ] || [ "$7" == "-w" ]; then
   if [ "x$3" == "x" ] ; then
