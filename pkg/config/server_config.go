@@ -34,8 +34,8 @@ const (
 type ServerConfig struct {
 	App struct {
 		Name  string `env:"APP_NAME"`
-		Port  string `env:"APP_PORT"`
-		Addr  string `env:"APP_ADDR"`
+		Port  string `env:"APP_PORT"`  // port to listen for incoming REST requests
+		Addr  string `env:"APP_ADDR"`  // host to list for request on
 		Debug bool   `env:"APP_DEBUG"` // true/false
 		Trace bool   `env:"APP_TRACE"` // true/false
 		Mode  string `env:"APP_MODE"`  // dev or prod
@@ -43,28 +43,28 @@ type ServerConfig struct {
 	Logging struct {
 		DynamicLogging bool   `env:"LOG_DYNAMIC"`      // true/false
 		DynamicPort    string `env:"LOG_DYNAMIC_PORT"` // host:port
-		ConfigFile     string `env:"LOG_JSON_CONFIG"`
+		ConfigFile     string `env:"LOG_JSON_CONFIG"`  // Json logging config file
 	}
 	Scanning struct {
-		WfpLoc         string `env:"SCAN_WFP_TMP"` // specific location to write temporary WFP files to
-		ScanBinary     string `env:"SCAN_BINARY"`
-		ScanDebug      bool   `env:"SCAN_DEBUG"` // true/false
-		ScanFlags      int    `env:"SCAN_ENGINE_FLAGS"`
-		ScanTimeout    int    `env:"SCAN_ENGINE_TIMEOUT"` // timeout for waiting for the scan engine to respond
-		WfpGrouping    int    `env:"SCAN_WFP_GROUPING"`   // number of WFP to group into a single scan engine command
-		Workers        int    `env:"SCAN_WORKERS"`
+		WfpLoc         string `env:"SCAN_WFP_TMP"`         // specific location to write temporary WFP files to
+		ScanBinary     string `env:"SCAN_BINARY"`          // Binary to use for scanning
+		ScanDebug      bool   `env:"SCAN_DEBUG"`           // true/false
+		ScanFlags      int    `env:"SCAN_ENGINE_FLAGS"`    // Default flags to use when scanning
+		ScanTimeout    int    `env:"SCAN_ENGINE_TIMEOUT"`  // timeout for waiting for the scan engine to respond
+		WfpGrouping    int    `env:"SCAN_WFP_GROUPING"`    // number of WFP to group into a single scan engine command
+		Workers        int    `env:"SCAN_WORKERS"`         // Number of concurrent workers to use per scan request
 		TmpFileDelete  bool   `env:"SCAN_TMP_DELETE"`      // true/false
 		KeepFailedWfps bool   `env:"SCAN_KEEP_FAILED_WFP"` // true/false
 	}
 	Tls struct {
-		CertFile string `env:"SCAN_TLS_CERT"`
-		KeyFile  string `env:"SCAN_TLS_KEY"`
+		CertFile string `env:"SCAN_TLS_CERT"` // TLS Certificate
+		KeyFile  string `env:"SCAN_TLS_KEY"`  // Private TLS Key
 	}
 	Filtering struct {
-		AllowListFile  string `env:"SCAN_ALLOW_LIST"`
-		DenyListFile   string `env:"SCAN_DENY_LIST"`
-		BlockByDefault bool   `env:"SCAN_BLOCK_BY_DEFAULT"`
-		TrustProxy     bool   `env:"SCAN_TRUST_PROXY"`
+		AllowListFile  string `env:"SCAN_ALLOW_LIST"`       // Allow list file for incoming connections
+		DenyListFile   string `env:"SCAN_DENY_LIST"`        // Deny list file for incoming connections
+		BlockByDefault bool   `env:"SCAN_BLOCK_BY_DEFAULT"` // Block request by default if they are not in the allow list
+		TrustProxy     bool   `env:"SCAN_TRUST_PROXY"`      // Trust the interim proxy or not (causes the source IP to be validated instead of the proxy)
 	}
 }
 

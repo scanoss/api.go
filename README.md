@@ -1,55 +1,85 @@
 # SCANOSS Scanning API in GO
 Welcome to the SCANOSS platform. This repository serves up the REST API supporting all the scanning capabilities written in golang.
 
-**Warning** Work In Progress **Warning**
+This is a replacement for the [WAYUU](https://github.com/scanoss/wayuu) and [API](https://github.com/scanoss/api) REST service/projects.
+
+# API Usage
+The API defines a number of endpoints (exact ones can be found in [server.go](pkg/protocol/rest/server.go)). The documentation for the API can be found [here](https://docs.osskb.org).
+
+Here are some example implementations of these endpoints:
+* [scanoss-py](https://github.com/scanoss/scanoss.py)
+* [scanoss-js](https://github.com/scanoss/scanoss.js)
+
 
 ## Repository Structure
 This repository is made up of the following components:
-* ?
+* [cmd](cmd) contains the entry point for launching the API Server
+* [pkg](pkg) contains the source code to process the REST requests
+* [config](config) contains sample configuration files to run the service
+* [scripts](scripts) contain helper scripts for installing the service onto a Linux server
+
+## Build and Deploy
+
+### How to build
+To build a deployable binary, please refer to the [Makefile](Makefile) for target options, including:
+* build_amd
+* build_arm
+* package_amd
+* package_arm
+
+All of these build commands target the Linux platform and focus on either AMD64 of ARM64 architectures.
+For example:
+```bash
+make build_amd
+```
+This will produce a binary in the [target](target) folder called `scanoss-go-api-amd64`. Similarly, using `build_arm` will produce a file called `scanoss-go-api-linux-arm64`.
+
+### Packaging
+
+Inside the [scripts](scripts) folder is a set of convenience utilities to aid deployment and running of the scanning API as a service.
+
+For example, running the following will put a Linux AMD64 binary into the `scripts` for deployment:
+```bash
+make package_amd
+```
+
+### Deployment
+
+The [scripts](scripts) folder contains an [env_setup.sh](scripts/env-setup.sh) script which attempts to do the following:
+* Set up the default folders
+* Set permissions
+* Set up service registration ([scanoss-go-api.service](scripts/scanoss-go-api.service))
+* Copy in binaries (if `scanoss-go-api` and/or `scanoss` exist in the folder)
+* Copy in preferred configuration (if `app-config-prod.json` exists in the folder)
+
+A sample production configuration file can be found in [config/app-config-prod.json](config/app-config-prod.json).
+
+Logs are written by default to `/var/log/scanoss/api/scanoss-api-prod.log`.
+
+Configuration is written by default to: `/usr/local/etc/scanoss/api`.
+
+### Running the Service
+
+Once the service has been deployed on a server, it can be managed using the `systemctl` command. For example:
+```bash
+systemctl status scanoss-go-api
+systemctl start scanoss-go-api
+systemctl stop scanoss-go-api
+systemctl restart scanoss-go-api
+```
 
 ## Configuration
 
-Environmental variables are fed in this order:
+Configuration for service can be handled in three different ways:
+* Dot ENV files (sample [here](.env.example))
+* ENV Json files (sample [here](config/app-config-prod.json))
+* Environment variables
 
-dot-env --> env.json -->  Actual Environment Variable
+The order in which these are loaded is as follows:
 
-Here are some of the supported configuration arguments:
+`dot-env --> env.json -->  Actual Environment Variable`
 
-```
-APP_DEBUG="true"
-APP_TRACE="true"
-SCAN_BINARY="./tests/scanoss.sh"
-LOG_DYNAMIC="true"
-SCAN_DEBUG="true"
-```
-
-The most up-to-date can be found in [server_config.go](pkg/config/server_config.go).
-
-## Docker Environment
-
-The scanning api server can be deployed as a Docker container.
-
-Adjust configurations by updating an .env file in the root of this repository.
-
-**TODO** Need to add the `scanoss` binary to this image.
-
-### How to build
-
-You can build your own image of the SCANOSS API Server with the ```docker build``` command as follows.
-
-```bash
-make ghcr_build
-```
-
-### How to run
-
-Run the SCANOSS API Server Docker image by specifying the environmental file to be used with the ```--env-file``` argument. 
-
-You may also need to expose the ```APP_PORT``` on a given ```interface:port``` with the ```-p``` argument.
-
-```bash
-docker run -it -v "$(pwd)":"$(pwd)" -p 5443:5443 ghcr.io/scanoss/scanoss-api-go -json-config $(pwd)/config/app-config-docker-local-dev.json -debug
-```
+The most up-to-date configuration options can be found in [server_config.go](pkg/config/server_config.go).
 
 ## Development
 
@@ -58,7 +88,7 @@ To run locally on your desktop, please use the following command:
 ```shell
 go run cmd/server/main.go -json-config config/app-config-dev.json -debug
 ```
-Note, this will simulate the `scanoss` command, so you might need to change this if you have the actual binary on your system.
+Note, this will simulate the `scanoss` command (using [scanoss.sh](tests/scanoss.sh)), so you might need to change this if you have the actual binary on your system.
 
 After changing a dependency version, please run the following command:
 ```shell
