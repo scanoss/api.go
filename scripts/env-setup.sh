@@ -10,17 +10,28 @@
 #
 ################################################################
 
+if [ "$1" = "-h" ] || [ "$1" = "-help" ] ; then
+  echo "$0 [-help] [environment]"
+  echo "   Setup and copy the relevant files into place on a server to run the SCANOSS GO API"
+  echo "   [environment] allows the optional specification of a suffix to allow multiple services to be deployed at the same time (optional)"
+  exit 1
+fi
+DEFAULT_ENV=""
+ENVIRONMENT="${1:-$DEFAULT_ENV}"
+
+# Makes sure the scanoss user exists
 export RUNTIME_USER=scanoss
 if ! getent passwd $RUNTIME_USER > /dev/null ; then
   echo "Runtime user does not exist: $RUNTIME_USER"
   echo "Please create using: useradd --system $RUNTIME_USER"
   exit 1
 fi
+# Also, make sure we're running as root
 if [ "$EUID" -ne 0 ] ; then
   echo "Please run as root"
   exit 1
 fi
-read -p "Install SCANOSS Go API (y/n) [n]? " -n 1 -r
+read -p "Install SCANOSS Go API $ENVIRONMENT (y/n) [n]? " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]] ; then
   echo "Starting installation..."
@@ -28,7 +39,7 @@ else
   echo "Stopping."
   exit 1
 fi
-
+# Setup all the required folders and ownership
 echo "Setting up API system folders..."
 if ! mkdir -p /usr/local/etc/scanoss/api ; then
   echo "mkdir failed"
@@ -45,6 +56,7 @@ if [ "$RUNTIME_USER" != "root" ] ; then
     echo "chown of $LOG_DIR to $RUNTIME_USER failed"
     exit 1
   fi
+  # Make sure the LDB is readable to the scanoss user
   export LDB=/var/lib/ldb
   cur_dir=$(pwd)
   if ! cd $LDB ; then
@@ -56,37 +68,50 @@ if [ "$RUNTIME_USER" != "root" ] ; then
     echo "chown of $LDB to $RUNTIME_USER failed"
     exit 1
   fi
-  cd $cur_dir
+  cd "$cur_dir" || exit 1
+fi
+# Setup the service on the system (defaulting to service name without environment)
+SC_SERVICE_FILE="scanoss-go-api.service"
+SC_SERVICE_NAME="scanoss-go-api"
+if [ -n "$ENVIRONMENT" ] ; then
+  SC_SERVICE_FILE="scanoss-go-api-${ENVIRONMENT}.service"
+  SC_SERVICE_NAME="scanoss-go-api-${ENVIRONMENT}"
 fi
 export service_stopped=""
-if [ -f /etc/systemd/system/scanoss-go-api.service ] ; then
-  echo "Stopping scanoss-go-api service first..."
-  if ! systemctl stop scanoss-go-api ; then
+if [ -f "/etc/systemd/system/$SC_SERVICE_FILE" ] ; then
+  echo "Stopping $SC_SERVICE_NAME service first..."
+  if ! systemctl stop "$SC_SERVICE_NAME" ; then
     echo "service stop failed"
     exit 1
   fi
   export service_stopped="true"
 fi
 echo "Copying service startup config..."
-if ! cp scanoss-go-api.service /etc/systemd/system ; then
-  echo "service copy failed"
-  exti 1
+if [ -f "$SC_SERVICE_FILE" ] ; then
+  if ! cp "$SC_SERVICE_FILE" /etc/systemd/system ; then
+    echo "service copy failed"
+    exti 1
+  fi
 fi
 if ! cp scanoss-go-api.sh /usr/local/bin ; then
   echo "api startup script copy failed"
   exit 1
 fi
-
+# Copy in the configuration file if requested
 CONF=app-config-prod.json
-if [ -f $CONF ] ; then
+if [ -n "$ENVIRONMENT" ] ; then
+  CONF="app-config-${ENVIRONMENT}.json"
+fi
+if [ -f "$CONF" ] ; then
   echo "Copying app config to /usr/local/etc/scanoss/api ..."
-  if ! cp $CONF /usr/local/etc/scanoss/api ; then
+  if ! cp "$CONF" /usr/local/etc/scanoss/api ; then
     echo "copy $CONF failed"
     exit 1
   fi
 else
   echo "Please put the config file into: /usr/local/etc/scanoss/api/$CONF"
 fi
+# Copy the binaries if requested
 BINARY=scanoss-go-api
 if [ -f $BINARY ] ; then
   echo "Copying app binary to /usr/local/bin ..."
@@ -122,8 +147,8 @@ if [ "$service_stopped" == "true" ] ; then
 fi
 echo
 echo "Review service config in: /usr/local/etc/scanoss/api/$CONF"
-echo "Start the service using: systemctl start scanoss-go-api"
-echo "Stop the service using: systemctl stop scanoss-go-api"
-echo "Get service status using: systemctl status scanoss-go-api"
+echo "Start the service using: systemctl start $SC_SERVICE_NAME"
+echo "Stop the service using: systemctl stop $SC_SERVICE_NAME"
+echo "Get service status using: systemctl status $SC_SERVICE_NAME"
 echo "Count the number of running scans using: ps -ef | grep \$(pgrep scanoss-go-api) | grep -v grep | wc -l"
 echo
