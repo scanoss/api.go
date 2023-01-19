@@ -105,5 +105,5 @@ func (s ApiService) SbomAttribution(w http.ResponseWriter, r *http.Request) {
 		zs.Debugf("Sending back attribution: %v", len(output))
 	}
 	w.Header().Set(ContentTypeKey, TextPlain)
-	printResponse(w, string(output), zs)
+	printResponse(w, string(output), zs, false)
 }

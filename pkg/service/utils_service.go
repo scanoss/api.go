@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2018-2022 SCANOSS.COM
+ * Copyright (C) 2018-2023 SCANOSS.COM
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,9 +65,14 @@ var counters = counterStruct{
 
 // incRequest increments the count for the given request type
 func (c *counterStruct) incRequest(key string) {
+	c.incRequestAmount(key, 1)
+}
+
+// incRequestAmount increments the count for the given request type by the given amount
+func (c *counterStruct) incRequestAmount(key string, amount int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.values[key]++
+	c.values[key] += amount
 }
 
 // WelcomeMsg responds with a welcome to the SCANOSS API
@@ -75,10 +80,7 @@ func WelcomeMsg(w http.ResponseWriter, r *http.Request) {
 	zlog.S.Debugf("%v request from %v", r.URL.Path, r.RemoteAddr)
 	w.Header().Set(ContentTypeKey, ApplicationJson)
 	w.WriteHeader(http.StatusOK)
-	_, err := fmt.Fprintln(w, `{"msg": "Hello from the SCANOSS Scanning API"}`)
-	if err != nil {
-		zlog.S.Errorf("Failed to write HTTP response: %v", err)
-	}
+	printResponse(w, fmt.Sprintln(`{"msg": "Hello from the SCANOSS Scanning API"}`), zlog.S, true)
 }
 
 // HealthCheck responds with the health of the service
@@ -86,10 +88,7 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	zlog.S.Debugf("%v request from %v", r.URL.Path, r.RemoteAddr)
 	w.Header().Set(ContentTypeKey, ApplicationJson)
 	w.WriteHeader(http.StatusOK)
-	_, err := fmt.Fprintln(w, `{"alive": true}`)
-	if err != nil {
-		zlog.S.Errorf("Failed to write HTTP response: %v", err)
-	}
+	printResponse(w, fmt.Sprintln(`{"alive": true}`), zlog.S, true)
 }
 
 // MetricsHandler responds with the metrics for the requested type
@@ -99,11 +98,13 @@ func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	if vars == nil || len(vars) == 0 {
 		zlog.S.Errorf("Failed to retrieve request variables")
 		http.Error(w, "ERROR no request variables submitted", http.StatusBadRequest)
+		return
 	}
 	mType, ok := vars["type"]
 	if !ok {
 		zlog.S.Errorf("Failed to retrieve type request variable from: %v", vars)
 		http.Error(w, "ERROR no type request variable submitted", http.StatusBadRequest)
+		return
 	}
 	// Convert bytes to megabytes
 	bToMb := func(b uint64) float64 {
@@ -116,8 +117,8 @@ func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 		return fmt.Sprintf("{\"alloc\": \"%.2f MiB\", \"total-alloc\": \"%.2f MiB\", \"sys\": \"%.2f MiB\"}", bToMb(m.Alloc), bToMb(m.TotalAlloc), bToMb(m.Sys))
 	}
 	reqCount := func() string {
-		return fmt.Sprintf("{\"scan\": %v, \"file_contents\": %v, \"attribution\": %v, \"license_details\": %v}",
-			counters.values["scan"], counters.values["file_contents"], counters.values["attribution"],
+		return fmt.Sprintf("{\"scans\": %v, \"files\": %v, \"file_contents\": %v, \"attribution\": %v, \"license_details\": %v}",
+			counters.values["scan"], counters.values["files"], counters.values["file_contents"], counters.values["attribution"],
 			counters.values["license_details"])
 	}
 	// Get the number of goroutines
@@ -142,19 +143,18 @@ func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set(ContentTypeKey, ApplicationJson)
 	w.WriteHeader(responseStatus)
 	zlog.S.Infof("Metrics: %v", responseString)
-	_, err := fmt.Fprint(w, responseString+"\n")
-	if err != nil {
-		zlog.S.Errorf("Failed to write HTTP response: %v", err)
-	}
+	printResponse(w, responseString+"\n", zlog.S, true)
 }
 
 // printResponse sends the given response to the HTTP Response Writer
-func printResponse(w http.ResponseWriter, resp string, zs *zap.SugaredLogger) {
+func printResponse(w http.ResponseWriter, resp string, zs *zap.SugaredLogger, silent bool) {
 	_, err := fmt.Fprint(w, resp)
 	if err != nil {
 		zs.Errorf("Failed to write HTTP response: %v", err)
 	} else {
-		zs.Infof("responded")
+		if !silent {
+			zs.Infof("responded")
+		}
 	}
 }
 
@@ -167,25 +167,26 @@ func closeMultipartFile(f multipart.File, zs *zap.SugaredLogger) {
 }
 
 // copyWfpTempFile copies a 'failed' WFP scan file to another file for later review
-func (s ApiService) copyWfpTempFile(filename string, zs *zap.SugaredLogger) {
+func (s ApiService) copyWfpTempFile(filename string, zs *zap.SugaredLogger) string {
 	zs.Debugf("Backing up failed WFP file...")
 	source, err := os.Open(filename)
 	if err != nil {
 		zs.Errorf("Failed to open file %v: %v", filename, err)
-		return
+		return ""
 	}
 	tempFile, err := os.CreateTemp(s.config.Scanning.WfpLoc, "failed-finger*.wfp")
 	if err != nil {
 		zs.Errorf("Failed to create temporary file: %v", err)
-		return
+		return ""
 	}
 	defer closeFile(tempFile, zs)
 	_, err = io.Copy(tempFile, source)
 	if err != nil {
 		zs.Errorf("Failed to copy temporary file %v to %v: %v", filename, tempFile.Name(), err)
-		return
+		return ""
 	}
 	zs.Warnf("Backed up failed WFP to: %v", tempFile.Name())
+	return tempFile.Name()
 }
 
 // closeFile closes the given file

@@ -65,5 +65,5 @@ func (s ApiService) FileContents(w http.ResponseWriter, r *http.Request) {
 		zs.Debugf("Sending back contents: %v", len(output))
 	}
 	w.Header().Set(ContentTypeKey, TextPlain)
-	printResponse(w, string(output), zs)
+	printResponse(w, string(output), zs, false)
 }

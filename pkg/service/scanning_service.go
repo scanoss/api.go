@@ -119,6 +119,7 @@ func (s ApiService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ERROR no WFP file contents (file=...) supplied", http.StatusBadRequest)
 		return
 	}
+	counters.incRequestAmount("files", int64(wfpCount))
 	// Sort chunks by size
 	//sort.SliceStable(wfps, func(i, j int) bool {  // TODO is this really needed?
 	//	return len(wfps[i]) < len(wfps[j])
@@ -140,7 +141,7 @@ func (s ApiService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 				http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 			} else {
 				w.Header().Set(ContentTypeKey, ApplicationJson)
-				printResponse(w, fmt.Sprintf("%s\n", response), zs)
+				printResponse(w, fmt.Sprintf("%s\n", response), zs, false)
 			}
 		}
 	} else {
@@ -204,7 +205,7 @@ func (s ApiService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 		} else {
 			w.Header().Set(ContentTypeKey, ApplicationJson)
-			printResponse(w, "{"+strings.Join(responses, ",")+"}\n", zs)
+			printResponse(w, "{"+strings.Join(responses, ",")+"}\n", zs, false)
 		}
 	}
 }
@@ -275,10 +276,8 @@ func (s ApiService) scanWfp(wfp, flags, sbomType, sbomFile string, zs *zap.Sugar
 		args = append(args, "-d") // Set debug mode
 	}
 	if s.config.Scanning.ScanFlags > 0 { // Set system flags if enabled
-		//args = append(args, "-F", fmt.Sprintf("%v", s.config.Scanning.ScanFlags))
 		args = append(args, fmt.Sprintf("-F %v", s.config.Scanning.ScanFlags))
 	} else if len(flags) > 0 && flags != "0" { // Set user supplied flags if enabled
-		//args = append(args, "-F", flags)
 		args = append(args, fmt.Sprintf("-F %s", flags))
 	}
 	if len(sbomFile) > 0 && len(sbomType) > 0 { // Add SBOM to scanning process

@@ -65,5 +65,5 @@ func (s ApiService) LicenseDetails(w http.ResponseWriter, r *http.Request) {
 		zs.Debugf("Sending back license details: %v", len(output))
 	}
 	w.Header().Set(ContentTypeKey, ApplicationJson)
-	printResponse(w, string(output), zs)
+	printResponse(w, string(output), zs, false)
 }
