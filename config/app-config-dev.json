@@ -5,6 +5,6 @@
     "Mode":  "dev"
   },
   "Scanning": {
-    "ScanBinary": "./tests/scanoss.sh"
+    "ScanBinary": "./test-support/scanoss.sh"
   }
 }

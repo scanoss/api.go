@@ -55,7 +55,7 @@ if [ "$1" == "-l" ] || [ "$2" == "-l" ]; then
   else
     license=$3
   fi
-  echo "{\"$license\": {\"patent_hints\": "yes", \"copyleft\": \"no\", \"checklist_url\": \"https://www.osadl.org/fileadmin/checklists/unreflicenses/Apache-2.0.txt\",\"osadl_updated\": \"2022-12-12T13:47:00+00:00\"}}"
+  echo "{\"$license\": {\"patent_hints\": \"yes\", \"copyleft\": \"no\", \"checklist_url\": \"https://www.osadl.org/fileadmin/checklists/unreflicenses/Apache-2.0.txt\",\"osadl_updated\": \"2022-12-12T13:47:00+00:00\"}}"
   exit 0
 fi
 
@@ -71,5 +71,5 @@ if [ "$1" == "-w" ] || [ "$2" == "-w" ] || [ "$3" == "-w" ] || [ "$4" == "-w" ] 
 fi
 
 # Unknown command option, respond with error
-echo "Unknown command option: $@"
+echo "Unknown command option: $*"
 exit 1
