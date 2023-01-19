@@ -43,6 +43,14 @@ For example, running the following will put a Linux AMD64 binary into the `scrip
 make package_amd
 ```
 
+### Versioning
+The version of the API is calculated at compile time from the git tags (see [version.sh](version.sh)). This is injected into [server.go](pkg/cmd/server.go) at compile time.
+
+To get the desired version in the deployed binary, please commit and tag the source before building. Standard [semantic versioning](https://semver.org) should be followed:
+```bash
+git tag v1.0.1
+```
+
 ### Deployment
 
 The [scripts](scripts) folder contains an [env_setup.sh](scripts/env-setup.sh) script which attempts to do the following:
@@ -83,14 +91,28 @@ The most up-to-date configuration options can be found in [server_config.go](pkg
 
 ## Development
 
+### Run Local
 To run locally on your desktop, please use the following command:
 
 ```shell
+make run_local
+```
+
+To use a different config file, simply run the command manually using:
+```shell
 go run cmd/server/main.go -json-config config/app-config-dev.json -debug
 ```
-Note, this will simulate the `scanoss` command (using [scanoss.sh](tests/scanoss.sh)), so you might need to change this if you have the actual binary on your system.
 
-After changing a dependency version, please run the following command:
+Note, this will simulate the `scanoss` command (using [scanoss.sh](test-support/scanoss.sh)), so you might need to change this if you have the actual binary on your system.
+
+### Unit Testing
+This project contains unit tests and can be invoked using:
+```shell
+make unit_test
+```
+
+### Dependency Updates
+After changing a dependency or version, please run the following command:
 ```shell
 go mod tidy -compat=1.19
 ```

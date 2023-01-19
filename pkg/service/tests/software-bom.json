@@ -1,0 +1,53 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.4",
+  "serialNumber": "urn:uuid:091a55ac-3ea4-4dca-a217-4c768f5fc520",
+  "version": 1,
+  "components": [
+    {
+      "type": "library",
+      "name": "coveo-search-ui",
+      "publisher": "Coveo",
+      "version": "2.10090.5",
+      "purl": "pkg:npm/coveo-search-ui",
+      "bom-ref": "pkg:npm/coveo-search-ui",
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "cycle-snabbdom",
+      "publisher": "TylorS",
+      "version": "1fd5d06",
+      "purl": "pkg:github/tylors/cycle-snabbdom",
+      "bom-ref": "pkg:github/tylors/cycle-snabbdom",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "name": "vue",
+      "publisher": "vuejs",
+      "version": "2.4.3",
+      "purl": "pkg:github/vuejs/vue",
+      "bom-ref": "pkg:github/vuejs/vue",
+      "licenses": [
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      ]
+    }
+  ]
+}

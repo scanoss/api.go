@@ -20,6 +20,14 @@ clean:  ## Clean all dev data
 	@echo "Removing dev data..."
 	@rm -f pkg/cmd/version.txt version.txt target
 
+unit_test:  ## Run all unit tests in the pkg folder
+	@echo "Running unit test framework..."
+	go test -v ./pkg/...
+
+run_local:  ## Launch the API locally for test
+	@echo "Launching API locally..."
+	go run cmd/server/main.go -json-config config/app-config-dev.json -debug
+
 version:  ## Produce dependency version text file
 	@echo "Writing version file..."
 	echo $(VERSION) > pkg/cmd/version.txt
