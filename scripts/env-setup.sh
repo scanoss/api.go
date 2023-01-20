@@ -139,11 +139,11 @@ fi
 echo "Installation complete."
 if [ "$service_stopped" == "true" ] ; then
   echo "Restarting service after install..."
-  if ! systemctl start scanoss-go-api ; then
+  if ! systemctl start $SC_SERVICE_NAME ; then
     echo "failed to restart service"
     exit 1
   fi
-  systemctl status scanoss-go-api
+  systemctl status $SC_SERVICE_NAME
 fi
 echo
 echo "Review service config in: /usr/local/etc/scanoss/api/$CONF"
