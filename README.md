@@ -111,6 +111,18 @@ This project contains unit tests and can be invoked using:
 make unit_test
 ```
 
+### Integration Testing
+This project contains integration tests and can be invoked using:
+```shell
+make int_test
+```
+This requires the service to be running locally listening on port `5443`.
+
+It is also possible to run the whole test via containers:
+```shell
+make e2e_test
+```
+
 ### Dependency Updates
 After changing a dependency or version, please run the following command:
 ```shell

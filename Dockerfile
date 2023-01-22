@@ -12,8 +12,11 @@ COPY . ./
 RUN go generate ./pkg/cmd/server.go
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./scanoss-go-api ./cmd/server
 
+FROM build as test
 
-FROM debian:buster-slim
+COPY test-support/scanoss.sh /app/scanoss.sh
+
+FROM debian:buster-slim as production
 
 WORKDIR /app
  
