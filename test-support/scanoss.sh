@@ -2,7 +2,7 @@
 ###
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# Copyright (C) 2018-2022 SCANOSS.COM
+# Copyright (C) 2018-2023 SCANOSS.COM
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,18 +17,16 @@
 ###
 
 # Simulate getting file contents
-if [ "$1" == "-h" ] || [ "$2" == "-h" ]; then
-  echo "SCANOSS engine help"
+if [ "$1" == "-h" ] || [ "$2" == "-h" ] || [ "$1" == "-help" ] || [ "$2" == "-help" ] ; then
+  echo "SCANOSS engine simulator help"
   echo " command options..."
   exit 0
 fi
+
 # Simulate getting file contents
-if [ "$1" == "-k" ] || [ "$2" == "-k" ]; then
-  if [ "x$3" == "x" ] ; then
-    md5=$2
-  else
-    md5=$3
-  fi
+if [ "$1" == "-k" ] || [ "$2" == "-k" ] || [ "$3" == "-k" ] ; then
+  for i in "$@"; do :; done
+  md5=$i
   echo "file contents: $md5"
   echo "line 2"
   echo "line 3"
@@ -36,12 +34,9 @@ if [ "$1" == "-k" ] || [ "$2" == "-k" ]; then
 fi
 
 # Simulate getting SBOM attribution
-if [ "$1" == "-a" ] || [ "$2" == "-a" ]; then
-  if [ "x$3" == "x" ] ; then
-    sbom=$2
-  else
-    sbom=$3
-  fi
+if [ "$1" == "-a" ] || [ "$2" == "-a" ] || [ "$3" == "-a" ] ; then
+  for i in "$@"; do :; done
+  sbom=$i
   echo "attribution: $sbom"
   echo "line 2"
   echo "line 3"
@@ -49,23 +44,17 @@ if [ "$1" == "-a" ] || [ "$2" == "-a" ]; then
 fi
 
 # Simulate getting license details
-if [ "$1" == "-l" ] || [ "$2" == "-l" ]; then
-  if [ "x$3" == "x" ] ; then
-    license=$2
-  else
-    license=$3
-  fi
+if [ "$1" == "-l" ] || [ "$2" == "-l" ] || [ "$3" == "-l" ] ; then
+  for i in "$@"; do :; done
+  license=$i
   echo "{\"$license\": {\"patent_hints\": \"yes\", \"copyleft\": \"no\", \"checklist_url\": \"https://www.osadl.org/fileadmin/checklists/unreflicenses/Apache-2.0.txt\",\"osadl_updated\": \"2022-12-12T13:47:00+00:00\"}}"
   exit 0
 fi
 
 # Simulate return a scan result
-if [ "$1" == "-w" ] || [ "$2" == "-w" ] || [ "$3" == "-w" ] || [ "$4" == "-w" ] || [ "$5" == "-w" ] || [ "$6" == "-w" ] || [ "$7" == "-w" ]; then
-  if [ "x$3" == "x" ] ; then
-    scf=$2
-  else
-    scf=$3
-  fi
+if [ "$1" == "-w" ] || [ "$2" == "-w" ] || [ "$3" == "-w" ] || [ "$4" == "-w" ] || [ "$5" == "-w" ] || [ "$6" == "-w" ] || [ "$7" == "-w" ] || [ "$8" == "-w" ]; then
+  for i in "$@"; do :; done
+  scf=$i
   echo " {\"$scf\":[{\"id\": \"none\"}]}  "
   exit 0
 fi

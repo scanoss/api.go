@@ -118,7 +118,7 @@ func TestScanDirectSingle(t *testing.T) {
 			fieldName: "file",
 			file:      "./tests/fingers.wfp",
 			scanType:  "does-not-exist",
-			assets:    "pkg:github/tylors/cycle-snabbdom",
+			assets:    "pkg:github/org/repo",
 			want:      http.StatusBadRequest,
 		},
 		{
@@ -127,7 +127,7 @@ func TestScanDirectSingle(t *testing.T) {
 			fieldName: "file",
 			file:      "./tests/fingers.wfp",
 			scanType:  "identify",
-			assets:    "pkg:github/tylors/cycle-snabbdom",
+			assets:    "pkg:github/org/repo",
 			want:      http.StatusOK,
 		},
 		{
@@ -136,7 +136,7 @@ func TestScanDirectSingle(t *testing.T) {
 			fieldName: "filename",
 			file:      "./tests/fingers.wfp",
 			scanType:  "blacklist",
-			assets:    "pkg:github/tylors/cycle-snabbdom",
+			assets:    "pkg:github/org/repo",
 			want:      http.StatusOK,
 		},
 	}
@@ -279,7 +279,7 @@ func TestScanDirectThreaded(t *testing.T) {
 			}
 			_ = mw.Close() // close the writer before making the request
 
-			req := httptest.NewRequest("POST", "http://localhost/api/api/sbom/attribution", postBody)
+			req := httptest.NewRequest("POST", "http://localhost/api/api/scan/direct", postBody)
 			w := httptest.NewRecorder()
 			req.Header.Add("Content-Type", mw.FormDataContentType())
 			apiService.ScanDirect(w, req)
