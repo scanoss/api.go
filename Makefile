@@ -18,7 +18,7 @@ help: ## This help
 
 clean:  ## Clean all dev data
 	@echo "Removing dev data..."
-	@rm -f pkg/cmd/version.txt version.txt target/*
+	@rm -f pkg/cmd/version.txt version.txt target/* scripts/scanoss-go-api
 
 clean_testcache:  ## Expire all Go test caches
 	@echo "Cleaning test caches..."
@@ -82,8 +82,10 @@ package_amd: version  ## Build & Package an AMD 64 binary
 	@echo "Building AMD binary $(VERSION) and placing into scripts..."
 	go generate ./pkg/cmd/server.go
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./scripts/scanoss-go-api ./cmd/server
+	bash ./package-scripts.sh linux-amd64 $(VERSION)
 
 package_arm: version  ## Build & Package an ARM 64 binary
 	@echo "Building ARM binary $(VERSION) and placing into scripts..."
 	go generate ./pkg/cmd/server.go
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./scripts/scanoss-go-api ./cmd/server
+	bash ./package-scripts.sh linux-arm64 $(VERSION)

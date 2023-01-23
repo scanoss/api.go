@@ -15,7 +15,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ###
-
+#
+# Determine the latest tag associated with this repo and echo to stdout
+#
 version=$(git describe --tags --abbrev=0)
 if [[ -z "$version" ]] ; then
   version=$(git describe --tags "$(git rev-list --tags --max-count=1)")
