@@ -18,19 +18,38 @@ help: ## This help
 
 clean:  ## Clean all dev data
 	@echo "Removing dev data..."
-	@rm -f pkg/cmd/version.txt version.txt target
+	@rm -f pkg/cmd/version.txt version.txt target/*
+
+clean_testcache:  ## Expire all Go test caches
+	@echo "Cleaning test caches..."
+	go clean -testcache ./...
+
+version:  ## Produce dependency version text file
+	@echo "Writing version file..."
+	echo $(VERSION) > pkg/cmd/version.txt
 
 unit_test:  ## Run all unit tests in the pkg folder
 	@echo "Running unit test framework..."
 	go test -v ./pkg/...
 
+int_test: clean_testcache  ## Run all integration tests in the tests folder
+	@echo "Running integration test framework..."
+	go test -v ./tests
+
 run_local:  ## Launch the API locally for test
 	@echo "Launching API locally..."
 	go run cmd/server/main.go -json-config config/app-config-dev.json -debug
 
-version:  ## Produce dependency version text file
-	@echo "Writing version file..."
-	echo $(VERSION) > pkg/cmd/version.txt
+docker_build_test:
+	@echo "Building test image..."
+	docker build . -t scanoss_api_go_service_test --target=test
+
+e2e_test: docker_build_test clean_testcache
+	@echo "Running End-to-End tests..."
+	docker-compose down
+	docker-compose up -d
+	docker-compose exec -T http go test -v -tags="integration e2e" ./tests
+	docker-compose down
 
 ghcr_build: version  ## Build GitHub container image
 	@echo "Building GHCR container image..."

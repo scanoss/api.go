@@ -1,0 +1,12 @@
+---
+
+version: "3"
+
+services:
+  http:
+    image: scanoss_api_go_service_test
+    environment:
+      SCAN_BINARY: "/app/scanoss.sh"
+    ports:
+      - "5443:5443"
+    entrypoint: "/app/scanoss-go-api"
