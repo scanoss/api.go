@@ -14,6 +14,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+// Package tests provides a set of integration tests to exercise the SCANOSS Scanning GO API
+// These tests include:
+// * Scanning
+// * Attribution
+// * File Contents
+// * License Obligations
+// * Health and Metrics
 package tests
 
 import (

@@ -52,19 +52,7 @@ git tag v1.0.1
 ```
 
 ### Deployment
-
-The [scripts](scripts) folder contains an [env_setup.sh](scripts/env-setup.sh) script which attempts to do the following:
-* Set up the default folders
-* Set permissions
-* Set up service registration ([scanoss-go-api.service](scripts/scanoss-go-api.service))
-* Copy in binaries (if `scanoss-go-api` and/or `scanoss` exist in the folder)
-* Copy in preferred configuration (if `app-config-prod.json` exists in the folder)
-
-A sample production configuration file can be found in [config/app-config-prod.json](config/app-config-prod.json).
-
-Logs are written by default to `/var/log/scanoss/api/scanoss-api-prod.log`.
-
-Configuration is written by default to: `/usr/local/etc/scanoss/api`.
+This [scripts](scripts) folder contains convenience utilities for deploying, configuring and running the SCANOSS GO API server. More details can be found [here](scripts/README.md).
 
 ### Running the Service
 
@@ -103,7 +91,7 @@ To use a different config file, simply run the command manually using:
 go run cmd/server/main.go -json-config config/app-config-dev.json -debug
 ```
 
-Note, this will simulate the `scanoss` command (using [scanoss.sh](test-support/scanoss.sh)), so you might need to change this if you have the actual binary on your system.
+Note, this will simulate the `scanoss` binary (using [scanoss.sh](test-support/scanoss.sh)), so you might need to change this if you have the actual binary on your system.
 
 ### Unit Testing
 This project contains unit tests and can be invoked using:

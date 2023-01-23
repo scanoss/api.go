@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Upcoming changes...
 
+## [1.0.0] - 2023-01-23
+### Added
+- Added GitHub action to build/unit test on push/pr
+- Added supporting README files
+
+## [0.7.0] - 2023-01-22
+### Added
+- Added unit tests
+- Added integration tests
+- Added End-to-end container testing
+
 ## [0.5.0] - 2023-01-07
 ### Added
 - Added attribution endpoint
@@ -30,3 +41,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.0.1]: https://github.com/scanoss/wayuu2/compare/v0.0.0...v0.0.1
 [0.4.1]: https://github.com/scanoss/wayuu2/compare/v0.0.1...v0.4.1
 [0.5.0]: https://github.com/scanoss/wayuu2/compare/v0.4.1...v0.5.0
+[0.7.0]: https://github.com/scanoss/wayuu2/compare/v0.5.0...v0.7.0
+[1.0.0]: https://github.com/scanoss/wayuu2/compare/v0.7.0...v1.0.0

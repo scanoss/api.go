@@ -139,7 +139,6 @@ fi
 echo "Installation complete."
 if [ "$service_stopped" == "true" ] ; then
   echo "Restarting service after install..."
-
   if ! systemctl start "$SC_SERVICE_NAME" ; then
     echo "failed to restart service"
     exit 1
