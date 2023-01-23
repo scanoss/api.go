@@ -22,10 +22,10 @@ jobs:
         go-version: 1.19
 
     - name: ENV
-      run: pwd && which bash
+      run: pwd && which bash && which git
 
     - name: VERSION
-      run: bash ./version.sh
+      run: git describe --tags --abbrev=0 && git rev-list --tags --max-count=1 && git describe --tags "$(git rev-list --tags --max-count=1)"
 
     - name: Build
       run: make build_amd
