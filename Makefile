@@ -4,7 +4,7 @@ IMAGE_NAME=scanoss-go-api
 REPO=scanoss
 DOCKER_FULLNAME=${REPO}/${IMAGE_NAME}
 GHCR_FULLNAME=ghcr.io/${REPO}/${IMAGE_NAME}
-VERSION=$(shell ./version.sh)
+VERSION=$(shell bash ./version.sh)
 
 # HELP
 # This will output the help for each task
