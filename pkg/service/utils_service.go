@@ -19,41 +19,45 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/gorilla/mux"
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	"go.uber.org/zap"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"runtime"
-	myconfig "scanoss.com/go-api/pkg/config"
 	"strings"
 	"sync"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"go.uber.org/zap"
+	myconfig "scanoss.com/go-api/pkg/config"
 )
 
-// Constants for use through the API services
+// Constants for use through the API services.
 const (
 	ContentTypeKey  = "content-type"
-	RequestIdKey    = "x-request-id"
-	ResponseIdKey   = "x-response-id"
-	ApplicationJson = "application/json"
+	RequestIDKey    = "x-request-id"
+	ResponseIDKey   = "x-response-id"
+	ApplicationJSON = "application/json"
 	TextPlain       = "text/plain"
 	ReqLogKey       = "reqId"
 )
 
-// ApiService details
-type ApiService struct {
+// RequestContextKey Request ID Key name for using with Context.
+type RequestContextKey struct{}
+
+// APIService details.
+type APIService struct {
 	config *myconfig.ServerConfig
 }
 
-// NewApiService instantiates an API Service instance for servicing the API requests
-func NewApiService(config *myconfig.ServerConfig) *ApiService {
-	return &ApiService{config: config}
+// NewAPIService instantiates an API Service instance for servicing the API requests.
+func NewAPIService(config *myconfig.ServerConfig) *APIService {
+	return &APIService{config: config}
 }
 
-// Structure for counting the total number of requests processed
+// Structure for counting the total number of requests processed.
 type counterStruct struct {
 	mu     sync.Mutex
 	values map[string]int64
@@ -63,39 +67,39 @@ var counters = counterStruct{
 	values: make(map[string]int64),
 }
 
-// incRequest increments the count for the given request type
+// incRequest increments the count for the given request type.
 func (c *counterStruct) incRequest(key string) {
 	c.incRequestAmount(key, 1)
 }
 
-// incRequestAmount increments the count for the given request type by the given amount
+// incRequestAmount increments the count for the given request type by the given amount.
 func (c *counterStruct) incRequestAmount(key string, amount int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.values[key] += amount
 }
 
-// WelcomeMsg responds with a welcome to the SCANOSS API
+// WelcomeMsg responds with a welcome to the SCANOSS API.
 func WelcomeMsg(w http.ResponseWriter, r *http.Request) {
 	zlog.S.Debugf("%v request from %v", r.URL.Path, r.RemoteAddr)
-	w.Header().Set(ContentTypeKey, ApplicationJson)
+	w.Header().Set(ContentTypeKey, ApplicationJSON)
 	w.WriteHeader(http.StatusOK)
 	printResponse(w, fmt.Sprintln(`{"msg": "Hello from the SCANOSS Scanning API"}`), zlog.S, true)
 }
 
-// HealthCheck responds with the health of the service
+// HealthCheck responds with the health of the service.
 func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	zlog.S.Debugf("%v request from %v", r.URL.Path, r.RemoteAddr)
-	w.Header().Set(ContentTypeKey, ApplicationJson)
+	w.Header().Set(ContentTypeKey, ApplicationJSON)
 	w.WriteHeader(http.StatusOK)
 	printResponse(w, fmt.Sprintln(`{"alive": true}`), zlog.S, true)
 }
 
-// MetricsHandler responds with the metrics for the requested type
+// MetricsHandler responds with the metrics for the requested type.
 func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	zlog.S.Debugf("%v request from %v - %v", r.URL.Path, r.RemoteAddr, vars)
-	if vars == nil || len(vars) == 0 {
+	if len(vars) == 0 {
 		zlog.S.Errorf("Failed to retrieve request variables")
 		http.Error(w, "ERROR no request variables submitted", http.StatusBadRequest)
 		return
@@ -140,25 +144,23 @@ func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 		responseString = fmt.Sprintf("{\"error\": \"Unknown request type: %v. Supported: goroutines, heap, requests, all\"}", mType)
 		responseStatus = http.StatusBadRequest
 	}
-	w.Header().Set(ContentTypeKey, ApplicationJson)
+	w.Header().Set(ContentTypeKey, ApplicationJSON)
 	w.WriteHeader(responseStatus)
 	zlog.S.Infof("Metrics: %v", responseString)
 	printResponse(w, responseString+"\n", zlog.S, true)
 }
 
-// printResponse sends the given response to the HTTP Response Writer
+// printResponse sends the given response to the HTTP Response Writer.
 func printResponse(w http.ResponseWriter, resp string, zs *zap.SugaredLogger, silent bool) {
 	_, err := fmt.Fprint(w, resp)
 	if err != nil {
 		zs.Errorf("Failed to write HTTP response: %v", err)
-	} else {
-		if !silent {
-			zs.Infof("responded")
-		}
+	} else if !silent {
+		zs.Infof("responded")
 	}
 }
 
-// closeMultipartFile closes the given multipart file
+// closeMultipartFile closes the given multipart file.
 func closeMultipartFile(f multipart.File, zs *zap.SugaredLogger) {
 	err := f.Close()
 	if err != nil {
@@ -166,8 +168,36 @@ func closeMultipartFile(f multipart.File, zs *zap.SugaredLogger) {
 	}
 }
 
-// copyWfpTempFile copies a 'failed' WFP scan file to another file for later review
-func (s ApiService) copyWfpTempFile(filename string, zs *zap.SugaredLogger) string {
+// getFormFile attmempts to get the contents of the form file from the supplied request.
+func (s APIService) getFormFile(r *http.Request, zs *zap.SugaredLogger, formType string) ([]byte, error) {
+	var contents []byte
+	var err error
+	formFiles := []string{"file", "filename"}
+	for _, fName := range formFiles { // Check for the contents in 'file' and 'filename'
+		var file multipart.File
+		file, _, err = r.FormFile(fName)
+		if err != nil {
+			zs.Infof("Cannot retrieve %s Form File: %v - %v. Trying an alternative name...", formType, fName, err)
+			continue
+		}
+		contents, err = io.ReadAll(file) // Load the file contents into memory
+		closeMultipartFile(file, zs)
+		if err == nil {
+			break // We have successfully gotten the file contents
+		} else {
+			zs.Infof("Cannot retrieve %s Form File (%v) contents: %v. Trying an alternative name...", formType, file, err)
+		}
+	}
+	// Make sure we have actually got a WFP file to scan
+	if err != nil {
+		zs.Errorf("Failed to retrieve WFP file contents (using %v): %v", formFiles, err)
+		return contents, err
+	}
+	return contents, nil
+}
+
+// copyWfpTempFile copies a 'failed' WFP scan file to another file for later review.
+func (s APIService) copyWfpTempFile(filename string, zs *zap.SugaredLogger) string {
 	zs.Debugf("Backing up failed WFP file...")
 	source, err := os.Open(filename)
 	if err != nil {
@@ -189,43 +219,44 @@ func (s ApiService) copyWfpTempFile(filename string, zs *zap.SugaredLogger) stri
 	return tempFile.Name()
 }
 
-// closeFile closes the given file
+// closeFile closes the given file.
 func closeFile(f *os.File, zs *zap.SugaredLogger) {
-	err := f.Close()
-	if err != nil {
-		zs.Warnf("Problem closing file: %v - %v", f.Name(), err)
+	if f != nil {
+		err := f.Close()
+		if err != nil {
+			zs.Warnf("Problem closing file: %v - %v", f.Name(), err)
+		}
 	}
 }
 
-// removeFile removes the given file and warns if anything went wrong
+// removeFile removes the given file and warns if anything went wrong.
 func removeFile(f *os.File, zs *zap.SugaredLogger) {
-	err := os.Remove(f.Name())
-	if err != nil {
-		zs.Warnf("Problem removing temp file: %v - %v", f.Name(), err)
-	} else {
-		zs.Debugf("Removed temporary file: %v", f.Name())
+	if f != nil {
+		err := os.Remove(f.Name())
+		if err != nil {
+			zs.Warnf("Problem removing temp file: %v - %v", f.Name(), err)
+		} else {
+			zs.Debugf("Removed temporary file: %v", f.Name())
+		}
 	}
 }
 
-// getReqId extracts the request id from the header and if not creates one and returns it
-func getReqId(r *http.Request) string {
-	reqId := strings.TrimSpace(r.Header.Get(RequestIdKey)) // Request ID
-	if len(reqId) == 0 {                                   // If no request id, create one
-		reqId = uuid.NewString()
+// getReqID extracts the request id from the header and if not creates one and returns it.
+func getReqID(r *http.Request) string {
+	reqID := strings.TrimSpace(r.Header.Get(RequestIDKey)) // Request ID
+	if len(reqID) == 0 {                                   // If no request id, create one
+		reqID = uuid.NewString()
 	}
-	return reqId
+	return reqID
 }
 
-// sugaredLogger returns a zap logger with as much context as possible
+// sugaredLogger returns a zap logger with as much context as possible.
 func sugaredLogger(ctx context.Context) *zap.SugaredLogger {
 	newLogger := zlog.L
 	if ctx != nil {
-		if ctxRqId, ok := ctx.Value(ReqLogKey).(string); ok {
-			newLogger = newLogger.With(zap.String(ReqLogKey, ctxRqId))
+		if ctxRqID, ok := ctx.Value(RequestContextKey{}).(string); ok {
+			newLogger = newLogger.With(zap.String(ReqLogKey, ctxRqID))
 		}
-		//if ctxSessionId, ok := ctx.Value(sessionIdKey).(string); ok {
-		//	newLogger = newLogger.With(zap.String("sessionId", ctxSessionId))
-		//}
 	}
 	return newLogger.Sugar()
 }

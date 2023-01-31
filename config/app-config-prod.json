@@ -23,7 +23,7 @@
     "TmpFileDelete": true,
     "KeepFailedWfps": true
   },
-  "Tls": {
+  "TLS": {
     "CertFile": "",
     "KeyFile": ""
   },

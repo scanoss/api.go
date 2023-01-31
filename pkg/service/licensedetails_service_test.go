@@ -17,12 +17,13 @@ package service
 
 import (
 	"fmt"
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLicenseDetails(t *testing.T) {
@@ -34,7 +35,7 @@ func TestLicenseDetails(t *testing.T) {
 	myConfig := setupConfig(t)
 	myConfig.App.Trace = true
 	myConfig.Scanning.ScanDebug = true
-	apiService := NewApiService(myConfig)
+	apiService := NewAPIService(myConfig)
 
 	tests := []struct {
 		name   string
@@ -96,7 +97,6 @@ func TestLicenseDetails(t *testing.T) {
 			fmt.Println("Status: ", resp.StatusCode)
 			fmt.Println("Type: ", resp.Header.Get("Content-Type"))
 			fmt.Println("Body: ", string(body))
-
 		})
 	}
 }

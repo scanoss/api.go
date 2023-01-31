@@ -75,7 +75,7 @@ func (s *E2EAttributionSuite) TestAttribution() {
 			if err != nil {
 				s.Failf("an error was not creating multipart form data.", "error: %v", err)
 			}
-			req, err := http.NewRequest("POST", fmt.Sprintf("%v/api/sbom/attribution", hostPort), &b)
+			req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%v/api/sbom/attribution", hostPort), &b)
 			if err != nil {
 				s.Failf("an error was not creating request.", "error: %v", err)
 			}

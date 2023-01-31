@@ -18,14 +18,15 @@ package service
 import (
 	"bytes"
 	"fmt"
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestScanEngine(t *testing.T) {
@@ -37,7 +38,7 @@ func TestScanEngine(t *testing.T) {
 	myConfig := setupConfig(t)
 	myConfig.App.Trace = true
 	myConfig.Scanning.ScanDebug = true
-	apiService := NewApiService(myConfig)
+	apiService := NewAPIService(myConfig)
 
 	tests := []struct {
 		name    string
@@ -73,7 +74,7 @@ func TestScanDirectSingle(t *testing.T) {
 	myConfig := setupConfig(t)
 	myConfig.App.Trace = true
 	myConfig.Scanning.ScanDebug = true
-	apiService := NewApiService(myConfig)
+	apiService := NewAPIService(myConfig)
 
 	tests := []struct {
 		name      string
@@ -162,12 +163,12 @@ func TestScanDirectSingle(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := io.Copy(writer, file); err != nil {
+			if _, err = io.Copy(writer, file); err != nil {
 				t.Fatal(err)
 			}
 			if len(test.scanType) > 0 && len(test.assets) > 0 {
 				fmt.Println("Adding asset options: ", test.scanType, test.assets)
-				err := mw.WriteField("type", test.scanType)
+				err = mw.WriteField("type", test.scanType)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -178,7 +179,7 @@ func TestScanDirectSingle(t *testing.T) {
 			}
 			_ = mw.Close() // close the writer before making the request
 
-			req := httptest.NewRequest("POST", "http://localhost/api/api/scan/direct", postBody)
+			req := httptest.NewRequest(http.MethodPost, "http://localhost/api/api/scan/direct", postBody)
 			w := httptest.NewRecorder()
 			req.Header.Add("Content-Type", mw.FormDataContentType())
 			apiService.ScanDirect(w, req)
@@ -191,7 +192,6 @@ func TestScanDirectSingle(t *testing.T) {
 			fmt.Println("Status: ", resp.StatusCode)
 			fmt.Println("Type: ", resp.Header.Get("Content-Type"))
 			fmt.Println("Body: ", string(body))
-
 		})
 	}
 }
@@ -207,7 +207,7 @@ func TestScanDirectThreaded(t *testing.T) {
 	myConfig.Scanning.ScanDebug = true
 	myConfig.Scanning.Workers = 2
 	myConfig.Scanning.WfpGrouping = 1
-	apiService := NewApiService(myConfig)
+	apiService := NewAPIService(myConfig)
 
 	tests := []struct {
 		name      string
@@ -274,12 +274,12 @@ func TestScanDirectThreaded(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := io.Copy(writer, file); err != nil {
+			if _, err = io.Copy(writer, file); err != nil {
 				t.Fatal(err)
 			}
 			_ = mw.Close() // close the writer before making the request
 
-			req := httptest.NewRequest("POST", "http://localhost/api/api/scan/direct", postBody)
+			req := httptest.NewRequest(http.MethodPost, "http://localhost/api/api/scan/direct", postBody)
 			w := httptest.NewRecorder()
 			req.Header.Add("Content-Type", mw.FormDataContentType())
 			apiService.ScanDirect(w, req)
@@ -292,7 +292,6 @@ func TestScanDirectThreaded(t *testing.T) {
 			fmt.Println("Status: ", resp.StatusCode)
 			fmt.Println("Type: ", resp.Header.Get("Content-Type"))
 			fmt.Println("Body: ", string(body))
-
 		})
 	}
 }

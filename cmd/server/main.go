@@ -20,10 +20,11 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"scanoss.com/go-api/pkg/cmd"
 )
 
-// main starts the Scanning Service
+// main starts the Scanning Service.
 func main() {
 	// Launch the Scanning Server Service
 	if err := cmd.RunServer(); err != nil {

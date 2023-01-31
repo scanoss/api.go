@@ -28,12 +28,12 @@ import (
 	"time"
 )
 
-// SbomAttribution handles retrieving the attribution notices for the given SBOM
-func (s ApiService) SbomAttribution(w http.ResponseWriter, r *http.Request) {
+// SbomAttribution handles retrieving the attribution notices for the given SBOM.
+func (s APIService) SbomAttribution(w http.ResponseWriter, r *http.Request) {
 	counters.incRequest("attribution")
-	reqId := getReqId(r)
-	w.Header().Set(ResponseIdKey, reqId)
-	zs := sugaredLogger(context.WithValue(r.Context(), ReqLogKey, reqId)) // Setup logger with context
+	reqID := getReqID(r)
+	w.Header().Set(ResponseIDKey, reqID)
+	zs := sugaredLogger(context.WithValue(r.Context(), RequestContextKey{}, reqID)) // Setup logger with context
 	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
 	var contents []byte
 	var err error

@@ -36,6 +36,12 @@ int_test: clean_testcache  ## Run all integration tests in the tests folder
 	@echo "Running integration test framework..."
 	go test -v ./tests
 
+lint_local: ## Run local instance of linting across the code base
+	golangci-lint run ./...
+
+lint_docker: ## Run docker instance of linting across the code base
+	docker run --rm -v $(pwd):/app -v ~/.cache/golangci-lint/v1.50.1:/root/.cache -w /app golangci/golangci-lint:v1.50.1 golangci-lint run ./...
+
 run_local:  ## Launch the API locally for test
 	@echo "Launching API locally..."
 	go run cmd/server/main.go -json-config config/app-config-dev.json -debug
@@ -44,7 +50,7 @@ docker_build_test:
 	@echo "Building test image..."
 	docker build . -t scanoss_api_go_service_test --target=test
 
-e2e_test: docker_build_test clean_testcache
+e2e_test: docker_build_test clean_testcache  ## Run end to end integration tests using Docker
 	@echo "Running End-to-End tests..."
 	docker-compose down
 	docker-compose up -d

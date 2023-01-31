@@ -34,7 +34,7 @@ import (
 var hostPort = "http://localhost:5443"
 
 // createMultipartFormData loads the given file and adds it to a multipart writer to be used when posting a request
-func createMultipartFormData(fileFieldName, filePath string, fileName string, extraFormFields map[string]string) (b bytes.Buffer, w *multipart.Writer, err error) {
+func createMultipartFormData(fileFieldName, filePath string, fileName string, extraFormFields map[string]string) (b bytes.Buffer, w *multipart.Writer, err error) { //nolint:lll
 	w = multipart.NewWriter(&b)
 	var fw io.Writer
 	file, err := os.Open(filePath)
@@ -52,7 +52,7 @@ func createMultipartFormData(fileFieldName, filePath string, fileName string, ex
 	}
 	// Add extra field data, if given
 	for k, v := range extraFormFields {
-		err := w.WriteField(k, v)
+		err = w.WriteField(k, v)
 		if err != nil {
 			return bytes.Buffer{}, nil, err
 		}

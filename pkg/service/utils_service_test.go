@@ -18,26 +18,27 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/golobby/config/v3"
-	"github.com/gorilla/mux"
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	myconfig "scanoss.com/go-api/pkg/config"
 	"strings"
 	"testing"
+
+	"github.com/golobby/config/v3"
+	"github.com/gorilla/mux"
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"github.com/stretchr/testify/assert"
+	myconfig "scanoss.com/go-api/pkg/config"
 )
 
-// newReq sets up a request with specified URL variables
+// newReq sets up a request with specified URL variables.
 func newReq(method, path, body string, vars map[string]string) *http.Request {
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
 	return mux.SetURLVars(r, vars)
 }
 
-// setupConfig sets up the default config for use
+// setupConfig sets up the default config for use.
 func setupConfig(t *testing.T) *myconfig.ServerConfig {
 	var feeders []config.Feeder
 	myConfig, err := myconfig.NewServerConfig(feeders)
@@ -55,7 +56,7 @@ func TestWelcomeMsg(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
 	}
 	defer zlog.SyncZap()
-	req := httptest.NewRequest("GET", "http://localhost/", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 	w := httptest.NewRecorder()
 	WelcomeMsg(w, req)
 	resp := w.Result()
@@ -78,7 +79,7 @@ func TestHealthCheck(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
 	}
 	defer zlog.SyncZap()
-	req := httptest.NewRequest("GET", "http://localhost/api/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://localhost/api/health", nil)
 	w := httptest.NewRecorder()
 	HealthCheck(w, req)
 	resp := w.Result()
@@ -158,7 +159,6 @@ func TestMetricsHandler(t *testing.T) {
 			fmt.Println("Status: ", resp.StatusCode)
 			fmt.Println("Type: ", resp.Header.Get("Content-Type"))
 			fmt.Println("Body: ", string(body))
-
 		})
 	}
 }
@@ -170,7 +170,7 @@ func TestApiService(t *testing.T) {
 	}
 	defer zlog.SyncZap()
 	myConfig := setupConfig(t)
-	apiService := NewApiService(myConfig)
+	apiService := NewAPIService(myConfig)
 	apiService.copyWfpTempFile("", zlog.S)
 	tempFile := apiService.copyWfpTempFile("utils_service.go", zlog.S)
 	assert.NotEmpty(t, tempFile)
@@ -183,12 +183,12 @@ func TestApiService(t *testing.T) {
 	closeFile(source, zlog.S)
 	closeFile(source, zlog.S)
 
-	req := httptest.NewRequest("GET", "http://localhost/", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 	w := httptest.NewRecorder()
-	reqId := getReqId(req)
-	assert.NotEmpty(t, reqId)
-	fmt.Println("ReqId: ", reqId)
-	zs := sugaredLogger(context.WithValue(req.Context(), ReqLogKey, reqId)) // Setup logger with context
+	reqID := getReqID(req)
+	assert.NotEmpty(t, reqID)
+	fmt.Println("ReqId: ", reqID)
+	zs := sugaredLogger(context.WithValue(req.Context(), RequestContextKey{}, reqID)) // Setup logger with context
 	assert.NotNil(t, zs)
 
 	printResponse(w, "test message", zs, false)

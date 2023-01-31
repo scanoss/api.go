@@ -20,55 +20,18 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/google/uuid"
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	"go.uber.org/zap"
-	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"go.uber.org/zap"
 )
 
-// ScanDirect handles WFP scanning requests from a client
-func (s ApiService) ScanDirect(w http.ResponseWriter, r *http.Request) {
-	counters.incRequest("scan")
-	reqId := getReqId(r)
-	w.Header().Set(ResponseIdKey, reqId)
-	zs := sugaredLogger(context.WithValue(r.Context(), ReqLogKey, reqId)) // Setup logger with context
-	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
-	var contents []byte
-	var err error
-	formFiles := []string{"file", "filename"}
-	for _, fName := range formFiles { // Check for the WFP contents in 'file' and 'filename'
-		var file multipart.File
-		file, _, err = r.FormFile(fName)
-		if err != nil {
-			zs.Infof("Cannot retrieve WFP Form File: %v - %v. Trying an alternative name...", fName, err)
-			continue
-		}
-		contents, err = io.ReadAll(file) // Load the file (WFP) contents into memory
-		closeMultipartFile(file, zs)
-		if err == nil {
-			break // We have successfully gotten the file contents
-		} else {
-			zs.Infof("Cannot retrieve WFP Form File (%v) contents: %v. Trying an alternative name...", file, err)
-		}
-	}
-	// Make sure we have actually got a WFP file to scan
-	if err != nil {
-		zs.Errorf("Failed to retrieve WFP file contents (using %v): %v", formFiles, err)
-		http.Error(w, "ERROR receiving WFP file contents", http.StatusBadRequest)
-		return
-	}
-	contentsTrimmed := bytes.TrimSpace(contents)
-	if len(contentsTrimmed) == 0 {
-		zs.Errorf("No WFP contents to scan (%v - %v)", len(contents), contents)
-		http.Error(w, "ERROR no WFP contents supplied", http.StatusBadRequest)
-		return
-	}
+func (s APIService) getFlags(r *http.Request, zs *zap.SugaredLogger) (string, string, string) {
 	flags := strings.TrimSpace(r.FormValue("flags"))   // Check form for Scanning flags
 	scanType := strings.TrimSpace(r.FormValue("type")) // Check form for SBOM type
 	sbom := strings.TrimSpace(r.FormValue("assets"))   // Check form for SBOM contents
@@ -85,6 +48,130 @@ func (s ApiService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 	if s.config.App.Trace {
 		zs.Debugf("Header: %v, Form: %v, flags: %v, type: %v, assets: %v", r.Header, r.Form, flags, scanType, sbom)
 	}
+	return flags, scanType, sbom
+}
+
+// writeSbomFile writes the given string into an SBOM temporary file.
+func (s APIService) writeSbomFile(sbom string, zs *zap.SugaredLogger) (*os.File, error) {
+	tempFile, err := os.CreateTemp(s.config.Scanning.WfpLoc, "sbom*.json")
+	if err != nil {
+		zs.Errorf("Failed to create temporary SBOM file: %v", err)
+		return nil, err
+	}
+	_, err = tempFile.WriteString(sbom + "\n")
+	if err != nil {
+		zs.Errorf("Failed to write to temporary SBOM file: %v - %v", tempFile.Name(), err)
+		return tempFile, err
+	}
+	closeFile(tempFile, zs)
+	return tempFile, nil
+}
+
+// singleScan runs a scan of the WFP in a single thread.
+func (s APIService) singleScan(wfp, flags, sbomType, sbomFile string, zs *zap.SugaredLogger, w http.ResponseWriter) {
+	zs.Debugf("Single threaded scan...")
+	result, err := s.scanWfp(wfp, flags, sbomType, sbomFile, zs)
+	if err != nil {
+		zs.Errorf("Engine scan failed: %v", err)
+		http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
+	} else {
+		zs.Debug("Scan completed")
+		response := strings.TrimSpace(result)
+		if len(response) == 0 {
+			zs.Warnf("Nothing in the engine response")
+			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
+		} else {
+			w.Header().Set(ContentTypeKey, ApplicationJSON)
+			printResponse(w, fmt.Sprintf("%s\n", response), zs, false)
+		}
+	}
+}
+
+// scanThreaded scan the given WFPs in multiple threads.
+func (s APIService) scanThreaded(wfps []string, wfpCount int, flags, sbomType, sbomFile string, zs *zap.SugaredLogger, w http.ResponseWriter) {
+	// Multiple workers, create input and output channels
+	requests := make(chan string)
+	results := make(chan string, wfpCount)
+	numWorkers := s.config.Scanning.Workers
+	if numWorkers > wfpCount {
+		zs.Debugf("Requested workers (%v) greater than WFPs (%v). Reducing number.", numWorkers, wfpCount)
+		numWorkers = wfpCount
+	}
+	zs.Debugf("Creating %v scanning workers...", numWorkers)
+	// Create workers
+	for i := 1; i <= numWorkers; i++ {
+		go s.workerScan(fmt.Sprintf("%d_%s", i, uuid.New().String()), requests, results, flags, sbomType, sbomFile, zs)
+	}
+	requestCount := 0 // Count the number of actual requests sent
+	var wfpRequests []string
+	for _, wfp := range wfps {
+		wfp = strings.TrimSpace(wfp)
+		if len(wfp) == 0 { // Ignore empty requests
+			continue
+		}
+		wfpRequests = append(wfpRequests, "file="+wfp)
+		if len(wfpRequests) >= s.config.Scanning.WfpGrouping { // Reach the WFP target, submit the request
+			if s.config.App.Trace {
+				zs.Debugf("Submitting requests: %v", len(wfpRequests))
+			}
+			requests <- strings.Join(wfpRequests, "\n")
+			requestCount++
+			wfpRequests = wfpRequests[:0] // reset to empty (keeping the memory allocation)
+		}
+	}
+	if len(wfpRequests) > 0 { // Submit the last unassigned WFPs to a request
+		if s.config.App.Trace {
+			zs.Debugf("Submitting last requests: %v", len(wfpRequests))
+		}
+		requests <- strings.Join(wfpRequests, "\n")
+		requestCount++
+	}
+	close(requests) // No more requests. close the channel
+	zs.Debugf("Finished sending requests: %v", requestCount)
+	var responses []string
+	for i := 0; i < requestCount; i++ { // Get results for the number of requests sent
+		if s.config.App.Trace {
+			zs.Debugf("Waiting for result %v", i)
+		}
+		result := <-results
+		if s.config.App.Trace {
+			zs.Debugf("Result %v: %v", i, strings.TrimSpace(result))
+		}
+		result = strings.TrimSpace(result)
+		if len(result) > 0 {
+			responses = append(responses, result)
+		}
+	}
+	close(results)
+	zs.Debugf("Responses: %v", len(responses))
+	if len(responses) == 0 {
+		zs.Errorf("Multi-engine scan failed to produce results")
+		http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
+	} else {
+		w.Header().Set(ContentTypeKey, ApplicationJSON)
+		printResponse(w, "{"+strings.Join(responses, ",")+"}\n", zs, false)
+	}
+}
+
+// ScanDirect handles WFP scanning requests from a client.
+func (s APIService) ScanDirect(w http.ResponseWriter, r *http.Request) {
+	counters.incRequest("scan")
+	reqID := getReqID(r)
+	w.Header().Set(ResponseIDKey, reqID)
+	zs := sugaredLogger(context.WithValue(r.Context(), RequestContextKey{}, reqID)) // Setup logger with context
+	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
+	contents, err := s.getFormFile(r, zs, "WFP")
+	if err != nil {
+		http.Error(w, "ERROR receiving WFP file contents", http.StatusBadRequest)
+		return
+	}
+	contentsTrimmed := bytes.TrimSpace(contents)
+	if len(contentsTrimmed) == 0 {
+		zs.Errorf("No WFP contents to scan (%v - %v)", len(contents), contents)
+		http.Error(w, "ERROR no WFP contents supplied", http.StatusBadRequest)
+		return
+	}
+	flags, scanType, sbom := s.getFlags(r, zs)
 	// Check if we have an SBOM (and type) supplied
 	var sbomFilename string
 	if len(sbom) > 0 && len(scanType) > 0 {
@@ -93,19 +180,11 @@ func (s ApiService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "ERROR invalid SBOM 'type' supplied", http.StatusBadRequest)
 			return
 		}
-		tempFile, err := os.CreateTemp(s.config.Scanning.WfpLoc, "sbom*.json")
+		tempFile, err := s.writeSbomFile(sbom, zs)
 		if err != nil {
-			zs.Errorf("Failed to create temporary SBOM file: %v", err)
 			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 			return
 		}
-		_, err = tempFile.WriteString(sbom + "\n")
-		if err != nil {
-			zs.Errorf("Failed to write to temporary SBOM file: %v - %v", tempFile.Name(), err)
-			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
-			return
-		}
-		closeFile(tempFile, zs)
 		if s.config.Scanning.TmpFileDelete {
 			defer removeFile(tempFile, zs)
 		}
@@ -120,98 +199,17 @@ func (s ApiService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	counters.incRequestAmount("files", int64(wfpCount))
-	// Sort chunks by size
-	//sort.SliceStable(wfps, func(i, j int) bool {  // TODO is this really needed?
-	//	return len(wfps[i]) < len(wfps[j])
-	//})
-
 	zs.Debugf("Need to scan %v files", wfpCount)
 	// Only one worker selected, so send the whole WFP in a single command
 	if s.config.Scanning.Workers <= 1 {
-		zs.Debugf("Single threaded scan...")
-		result, err := s.scanWfp(string(contentsTrimmed), flags, scanType, sbomFilename, zs)
-		if err != nil {
-			zs.Errorf("Engine scan failed: %v", err)
-			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
-		} else {
-			zs.Debug("Scan completed")
-			response := strings.TrimSpace(result)
-			if len(response) == 0 {
-				zs.Warnf("Nothing in the engine response")
-				http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
-			} else {
-				w.Header().Set(ContentTypeKey, ApplicationJson)
-				printResponse(w, fmt.Sprintf("%s\n", response), zs, false)
-			}
-		}
+		s.singleScan(string(contentsTrimmed), flags, scanType, sbomFilename, zs, w)
 	} else {
-		// Multiple workers, create input and output channels
-		requests := make(chan string)
-		results := make(chan string, wfpCount)
-		numWorkers := s.config.Scanning.Workers
-		if numWorkers > wfpCount {
-			zs.Debugf("Requested workers (%v) greater than WFPs (%v). Reducing number.", numWorkers, wfpCount)
-			numWorkers = wfpCount
-		}
-		zs.Debugf("Creating %v scanning workers...", numWorkers)
-		// Create workers
-		for i := 1; i <= numWorkers; i++ {
-			go s.workerScan(fmt.Sprintf("%d_%s", i, uuid.New().String()), requests, results, flags, scanType, sbomFilename, zs)
-		}
-		requestCount := 0 // Count the number of actual requests sent
-		var wfpRequests []string
-		for _, wfp := range wfps {
-			wfp = strings.TrimSpace(wfp)
-			if len(wfp) == 0 { // Ignore empty requests
-				continue
-			}
-			wfpRequests = append(wfpRequests, "file="+wfp)
-			if len(wfpRequests) >= s.config.Scanning.WfpGrouping { // Reach the WFP target, submit the request
-				if s.config.App.Trace {
-					zs.Debugf("Submitting requests: %v", len(wfpRequests))
-				}
-				requests <- strings.Join(wfpRequests, "\n")
-				requestCount++
-				wfpRequests = wfpRequests[:0] // reset to empty (keeping the memory allocation)
-			}
-		}
-		if len(wfpRequests) > 0 { // Submit the last unassigned WFPs to a request
-			if s.config.App.Trace {
-				zs.Debugf("Submitting last requests: %v", len(wfpRequests))
-			}
-			requests <- strings.Join(wfpRequests, "\n")
-			requestCount++
-		}
-		close(requests) // No more requests. close the channel
-		zs.Debugf("Finished sending requests: %v", requestCount)
-		var responses []string
-		for i := 0; i < requestCount; i++ { // Get results for the number of requests sent
-			if s.config.App.Trace {
-				zs.Debugf("Waiting for result %v", i)
-			}
-			result := <-results
-			if s.config.App.Trace {
-				zs.Debugf("Result %v: %v", i, strings.TrimSpace(result))
-			}
-			result = strings.TrimSpace(result)
-			if len(result) > 0 {
-				responses = append(responses, result)
-			}
-		}
-		close(results)
-		zs.Debugf("Responses: %v", len(responses))
-		if len(responses) == 0 {
-			zs.Errorf("Multi-engine scan failed to produce results")
-			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
-		} else {
-			w.Header().Set(ContentTypeKey, ApplicationJson)
-			printResponse(w, "{"+strings.Join(responses, ",")+"}\n", zs, false)
-		}
+		s.scanThreaded(wfps, wfpCount, flags, scanType, sbomFilename, zs, w)
 	}
 }
 
-// workerScan attempts to process all incoming scanning jobs and dumps the results into the subsequent results channel
-func (s ApiService) workerScan(id string, jobs <-chan string, results chan<- string, flags, sbomType, sbomFile string, zs *zap.SugaredLogger) {
+// workerScan attempts to process all incoming scanning jobs and dumps the results into the subsequent results channel.
+func (s APIService) workerScan(id string, jobs <-chan string, results chan<- string, flags, sbomType, sbomFile string, zs *zap.SugaredLogger) {
 	if s.config.App.Trace {
 		zs.Debugf("Starting up scanning worker: %v", id)
 	}
@@ -249,9 +247,8 @@ func (s ApiService) workerScan(id string, jobs <-chan string, results chan<- str
 	}
 }
 
-// scanWfp run the scanoss engine scan of the supplied WFP
-func (s ApiService) scanWfp(wfp, flags, sbomType, sbomFile string, zs *zap.SugaredLogger) (string, error) {
-
+// scanWfp run the scanoss engine scan of the supplied WFP.
+func (s APIService) scanWfp(wfp, flags, sbomType, sbomFile string, zs *zap.SugaredLogger) (string, error) {
 	if len(wfp) == 0 {
 		zs.Warnf("Nothing in the job request to scan. Ignoring")
 		return "", fmt.Errorf("no wfp supplied to scan. ignoring")
@@ -307,8 +304,8 @@ func (s ApiService) scanWfp(wfp, flags, sbomType, sbomFile string, zs *zap.Sugar
 	return string(output), nil
 }
 
-// TestEngine tests if the SCANOSS engine is accessible and running
-func (s ApiService) TestEngine() error {
+// TestEngine tests if the SCANOSS engine is accessible and running.
+func (s APIService) TestEngine() error {
 	zlog.S.Infof("Testing engine command: %v", s.config.Scanning.ScanBinary)
 	var args []string
 	args = append(args, "-h")

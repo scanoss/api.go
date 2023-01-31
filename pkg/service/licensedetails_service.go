@@ -19,22 +19,23 @@ package service
 import (
 	"bytes"
 	"context"
-	"github.com/gorilla/mux"
 	"net/http"
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/gorilla/mux"
 )
 
-// LicenseDetails handles retrieval of license details for the client
-func (s ApiService) LicenseDetails(w http.ResponseWriter, r *http.Request) {
+// LicenseDetails handles retrieval of license details for the client.
+func (s APIService) LicenseDetails(w http.ResponseWriter, r *http.Request) {
 	counters.incRequest("license_details")
-	reqId := getReqId(r)
-	w.Header().Set(ResponseIdKey, reqId)
-	zs := sugaredLogger(context.WithValue(r.Context(), ReqLogKey, reqId)) // Setup logger with context
+	reqID := getReqID(r)
+	w.Header().Set(ResponseIDKey, reqID)
+	zs := sugaredLogger(context.WithValue(r.Context(), RequestContextKey{}, reqID)) // Setup logger with context
 	vars := mux.Vars(r)
 	zs.Infof("%v request from %v - %v", r.URL.Path, r.RemoteAddr, vars)
-	if vars == nil || len(vars) == 0 {
+	if len(vars) == 0 {
 		zs.Errorf("Failed to retrieve request variables")
 		http.Error(w, "ERROR no request variables submitted", http.StatusBadRequest)
 	}
@@ -64,6 +65,6 @@ func (s ApiService) LicenseDetails(w http.ResponseWriter, r *http.Request) {
 	} else {
 		zs.Debugf("Sending back license details: %v", len(output))
 	}
-	w.Header().Set(ContentTypeKey, ApplicationJson)
+	w.Header().Set(ContentTypeKey, ApplicationJSON)
 	printResponse(w, string(output), zs, false)
 }

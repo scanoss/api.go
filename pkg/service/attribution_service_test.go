@@ -18,14 +18,15 @@ package service
 import (
 	"bytes"
 	"fmt"
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestSbomAttribution(t *testing.T) {
@@ -37,7 +38,7 @@ func TestSbomAttribution(t *testing.T) {
 	myConfig := setupConfig(t)
 	myConfig.App.Trace = true
 	myConfig.Scanning.ScanDebug = true
-	apiService := NewApiService(myConfig)
+	apiService := NewAPIService(myConfig)
 
 	tests := []struct {
 		name      string
@@ -104,12 +105,12 @@ func TestSbomAttribution(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if _, err := io.Copy(writer, file); err != nil {
+			if _, err = io.Copy(writer, file); err != nil {
 				t.Fatal(err)
 			}
 			_ = mw.Close() // close the writer before making the request
 
-			req := httptest.NewRequest("POST", "http://localhost/api/sbom/attribution", postBody)
+			req := httptest.NewRequest(http.MethodPost, "http://localhost/api/sbom/attribution", postBody)
 			w := httptest.NewRecorder()
 			req.Header.Add("Content-Type", mw.FormDataContentType())
 			apiService.SbomAttribution(w, req)
@@ -122,7 +123,6 @@ func TestSbomAttribution(t *testing.T) {
 			fmt.Println("Status: ", resp.StatusCode)
 			fmt.Println("Type: ", resp.Header.Get("Content-Type"))
 			fmt.Println("Body: ", string(body))
-
 		})
 	}
 }

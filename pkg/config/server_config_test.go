@@ -19,10 +19,11 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/golobby/config/v3"
-	"github.com/golobby/config/v3/pkg/feeder"
 	"os"
 	"testing"
+
+	"github.com/golobby/config/v3"
+	"github.com/golobby/config/v3/pkg/feeder"
 )
 
 func TestServerConfig(t *testing.T) {
@@ -90,18 +91,17 @@ func TestServerConfigJson(t *testing.T) {
 }
 
 func TestServerConfigLoadFile(t *testing.T) {
-
-	res, err := LoadFile("")
+	_, err := LoadFile("")
 	if err == nil {
 		t.Errorf("Did not get expected error when loading a file")
 	}
 	filename := "./test/does-not-exist.txt"
-	res, err = LoadFile(filename)
+	_, err = LoadFile(filename)
 	if err == nil {
 		t.Errorf("Did not get expected error when loading a file: %v", filename)
 	}
 	filename = "./tests/allow_list.txt"
-	res, err = LoadFile(filename)
+	res, err := LoadFile(filename)
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when loading a data file", err)
 	}

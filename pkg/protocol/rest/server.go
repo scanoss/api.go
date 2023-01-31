@@ -22,76 +22,31 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/jpillora/ipfilter"
-	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"net/http"
 	"os"
 	"os/signal"
-	myconfig "scanoss.com/go-api/pkg/config"
-	"scanoss.com/go-api/pkg/service"
 	"syscall"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/jpillora/ipfilter"
+	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	myconfig "scanoss.com/go-api/pkg/config"
+	"scanoss.com/go-api/pkg/service"
 )
 
-// RunServer runs REST service to publish
+// RunServer runs REST service to publish.
 func RunServer(config *myconfig.ServerConfig) error {
 	// Check if TLS should be enabled or not
-	var startTls = false
-	if len(config.Tls.CertFile) > 0 && len(config.Tls.KeyFile) > 0 {
-		cf, err := checkFile(config.Tls.CertFile)
-		if err != nil || !cf {
-			zlog.S.Errorf("Cert file is not accessible: %v", config.Tls.CertFile)
-			if err != nil {
-				return err
-			} else {
-				return fmt.Errorf("cert file not accesible: %v", config.Tls.CertFile)
-			}
-		}
-		kf, err := checkFile(config.Tls.KeyFile)
-		if err != nil || !kf {
-			zlog.S.Errorf("Key file is not accessible: %v", config.Tls.KeyFile)
-			if err != nil {
-				return err
-			} else {
-				return fmt.Errorf("key file not accesible: %v", config.Tls.KeyFile)
-			}
-		}
-		startTls = true
+	startTLS, err := checkTLS(config)
+	if err != nil {
+		return err
 	}
-	var allowedIPs []string
-	if len(config.Filtering.AllowListFile) > 0 {
-		cf, err := checkFile(config.Filtering.AllowListFile)
-		if err != nil || !cf {
-			zlog.S.Errorf("Allow List file is not accessible: %v", config.Filtering.AllowListFile)
-			if err != nil {
-				return err
-			} else {
-				return fmt.Errorf("allow list file not accesible: %v", config.Filtering.AllowListFile)
-			}
-		}
-		allowedIPs, err = myconfig.LoadFile(config.Filtering.AllowListFile)
-		if err != nil {
-			return err
-		}
+	allowedIPs, deniedIPs, err := loadFiltering(config)
+	if err != nil {
+		return err
 	}
-	var deniedIPs []string
-	if len(config.Filtering.DenyListFile) > 0 {
-		cf, err := checkFile(config.Filtering.DenyListFile)
-		if err != nil || !cf {
-			zlog.S.Errorf("Deny List file is not accessible: %v", config.Filtering.DenyListFile)
-			if err != nil {
-				return err
-			} else {
-				return fmt.Errorf("deny list file not accesible: %v", config.Filtering.DenyListFile)
-			}
-		}
-		deniedIPs, err = myconfig.LoadFile(config.Filtering.DenyListFile)
-		if err != nil {
-			return err
-		}
-	}
-	apiService := service.NewApiService(config)
+	apiService := service.NewAPIService(config)
 	if err := apiService.TestEngine(); err != nil {
 		zlog.S.Warnf("Scanning engine test failed. Scan requests are likely to fail.")
 		zlog.S.Warnf("Please make sure that %v is accessible", config.Scanning.ScanBinary)
@@ -108,8 +63,9 @@ func RunServer(config *myconfig.ServerConfig) error {
 	router.HandleFunc("/api/scan/direct", apiService.ScanDirect).Methods(http.MethodPost)
 	router.HandleFunc("/api/sbom/attribution", apiService.SbomAttribution).Methods(http.MethodPost)
 	srv := &http.Server{
-		Handler: router,
-		Addr:    fmt.Sprintf("%s:%s", config.App.Addr, config.App.Port),
+		Handler:           router,
+		Addr:              fmt.Sprintf("%s:%s", config.App.Addr, config.App.Port),
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 	if len(allowedIPs) > 0 || len(deniedIPs) > 0 { // Configure the list of allowed/denied IPs to connect
 		zlog.S.Debugf("Filtering requests by allowed: %v, denied: %v, block-by-default: %v", allowedIPs, deniedIPs, config.Filtering.BlockByDefault)
@@ -121,9 +77,9 @@ func RunServer(config *myconfig.ServerConfig) error {
 	// Open TCP port (in the background) and listen for requests
 	go func() {
 		var httpErr error
-		if startTls {
+		if startTLS {
 			zlog.S.Infof("starting REST server with TLS on %v ...", srv.Addr)
-			httpErr = srv.ListenAndServeTLS(config.Tls.CertFile, config.Tls.KeyFile)
+			httpErr = srv.ListenAndServeTLS(config.TLS.CertFile, config.TLS.KeyFile)
 		} else {
 			zlog.S.Infof("starting REST server on %v ...", srv.Addr)
 			httpErr = srv.ListenAndServe()
@@ -148,7 +104,7 @@ func RunServer(config *myconfig.ServerConfig) error {
 	return nil
 }
 
-// checkFile validates if the given file exists or not
+// checkFile validates if the given file exists or not.
 func checkFile(filename string) (bool, error) {
 	if len(filename) == 0 {
 		return false, fmt.Errorf("no file specified to check")
@@ -164,4 +120,68 @@ func checkFile(filename string) (bool, error) {
 		return false, fmt.Errorf("is a directory and not a file")
 	}
 	return true, nil
+}
+
+// checkTLS tests if TLS should be enabled or not.
+func checkTLS(config *myconfig.ServerConfig) (bool, error) {
+	var startTLS = false
+	if len(config.TLS.CertFile) > 0 && len(config.TLS.KeyFile) > 0 {
+		cf, err := checkFile(config.TLS.CertFile)
+		if err != nil || !cf {
+			zlog.S.Errorf("Cert file is not accessible: %v", config.TLS.CertFile)
+			if err != nil {
+				return false, err
+			} else {
+				return false, fmt.Errorf("cert file not accesible: %v", config.TLS.CertFile)
+			}
+		}
+		kf, err := checkFile(config.TLS.KeyFile)
+		if err != nil || !kf {
+			zlog.S.Errorf("Key file is not accessible: %v", config.TLS.KeyFile)
+			if err != nil {
+				return false, err
+			} else {
+				return false, fmt.Errorf("key file not accesible: %v", config.TLS.KeyFile)
+			}
+		}
+		startTLS = true
+	}
+	return startTLS, nil
+}
+
+// loadFiltering loads the IP filtering options if available.
+func loadFiltering(config *myconfig.ServerConfig) ([]string, []string, error) {
+	var allowedIPs []string
+	if len(config.Filtering.AllowListFile) > 0 {
+		cf, err := checkFile(config.Filtering.AllowListFile)
+		if err != nil || !cf {
+			zlog.S.Errorf("Allow List file is not accessible: %v", config.Filtering.AllowListFile)
+			if err != nil {
+				return nil, nil, err
+			} else {
+				return nil, nil, fmt.Errorf("allow list file not accesible: %v", config.Filtering.AllowListFile)
+			}
+		}
+		allowedIPs, err = myconfig.LoadFile(config.Filtering.AllowListFile)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	var deniedIPs []string
+	if len(config.Filtering.DenyListFile) > 0 {
+		cf, err := checkFile(config.Filtering.DenyListFile)
+		if err != nil || !cf {
+			zlog.S.Errorf("Deny List file is not accessible: %v", config.Filtering.DenyListFile)
+			if err != nil {
+				return nil, nil, err
+			} else {
+				return nil, nil, fmt.Errorf("deny list file not accesible: %v", config.Filtering.DenyListFile)
+			}
+		}
+		deniedIPs, err = myconfig.LoadFile(config.Filtering.DenyListFile)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return allowedIPs, deniedIPs, nil
 }
