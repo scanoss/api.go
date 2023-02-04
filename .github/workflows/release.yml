@@ -31,4 +31,5 @@ jobs:
           files: |
             target/scanoss-go-api-linux-amd64
             target/scanoss-go-api-linux-arm64
-            scanoss-go-linux-*.tgz
+            scanoss-go_linux-amd64_${{ github.ref_name }}-1.tgz
+            scanoss-go_linux-arm64_${{ github.ref_name }}-1.tgz
