@@ -1,4 +1,4 @@
-name: Go
+name: Go CI
 # This workflow will build a golang project and run unit tests
 
 on:
