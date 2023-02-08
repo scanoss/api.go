@@ -19,13 +19,13 @@ jobs:
         with:
           go-version: 1.19
 
-      - name: Unit Test
-        run: make unit_test
-
       - name: Build
         run: |
           make build_amd
           make build_arm
+
+      - name: Unit Test
+        run: make unit_test
 
       - name: Package
         run: |

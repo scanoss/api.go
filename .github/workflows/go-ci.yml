@@ -21,8 +21,8 @@ jobs:
         with:
           go-version: 1.19
 
-      - name: Unit Test
-        run: make unit_test
-
       - name: Build
         run: make build_amd
+
+      - name: Unit Test
+        run: make unit_test
