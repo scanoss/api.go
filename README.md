@@ -4,6 +4,7 @@ Welcome to the SCANOSS platform. This repository serves up the REST API supporti
 This is a replacement for the [WAYUU](https://github.com/scanoss/wayuu) and [API](https://github.com/scanoss/api) REST service/projects.
 
 [![Unit Tests](https://github.com/scanoss/api.go/actions/workflows/go-ci.yml/badge.svg)](https://github.com/scanoss/api.go/actions/workflows/go-ci.yml)
+[![Golang CI Linting](https://github.com/scanoss/api.go/actions/workflows/golangci-lint.yml/badge.svg)](https://github.com/scanoss/api.go/actions/workflows/golangci-lint.yml)
 
 # API Usage
 The API defines a number of endpoints (exact ones can be found in [server.go](pkg/protocol/rest/server.go)). The documentation for the API can be found [here](https://docs.osskb.org).
