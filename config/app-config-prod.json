@@ -10,6 +10,9 @@
   "Logging": {
     "DynamicLogging": true,
     "DynamicPort": "localhost:60085",
+    "OutputPaths": [
+      "stderr"
+    ],
     "ConfigFile": ""
   },
   "Scanning": {

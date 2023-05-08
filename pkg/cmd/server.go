@@ -69,6 +69,19 @@ func getConfig() (*myconfig.ServerConfig, error) {
 	return myConfig, err
 }
 
+// setupCustomURL configures a custom URL for the scanoss engine.
+func setupCustomURL(cfg *myconfig.ServerConfig) {
+	if len(cfg.Scanning.ScanningURL) > 0 {
+		err := os.Setenv("SCANOSS_API_URL", cfg.Scanning.ScanningURL)
+		if err != nil {
+			zlog.S.Infof("Failed to set alternative SCANOSS_API_URL value to %s: %v", cfg.Scanning.ScanningURL, err)
+		}
+	}
+	if customURL := os.Getenv("SCANOSS_API_URL"); len(customURL) > 0 {
+		zlog.S.Infof("Using custom API URL: %s", customURL)
+	}
+}
+
 // RunServer runs the gRPC Dependency Server.
 func RunServer() error {
 	// Load command line options and config
@@ -84,7 +97,7 @@ func RunServer() error {
 			if len(cfg.Logging.ConfigFile) > 0 {
 				err = zlog.NewSugaredLoggerFromFile(cfg.Logging.ConfigFile)
 			} else {
-				err = zlog.NewSugaredProdLogger()
+				err = zlog.NewSugaredProdLogger(cfg.Logging.OutputPaths...)
 			}
 		default:
 			if len(cfg.Logging.ConfigFile) > 0 {
@@ -112,5 +125,7 @@ func RunServer() error {
 	}
 	zlog.S.Infof("Running with %v worker(s) per scan request", cfg.Scanning.Workers)
 	zlog.S.Infof("Running with config: %+v", *cfg)
+	// Setup custom URL if requested
+	setupCustomURL(cfg)
 	return rest.RunServer(cfg)
 }

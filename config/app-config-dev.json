@@ -1,10 +1,12 @@
 {
   "App": {
     "Name": "Scanning GO API",
+    "Port": "5443",
     "Debug": true,
     "Mode":  "dev"
   },
   "Scanning": {
-    "ScanBinary": "./test-support/scanoss.sh"
+    "ScanBinary": "./test-support/scanoss.sh",
+    "ScanningURL": "http://localhost:5443/api"
   }
 }

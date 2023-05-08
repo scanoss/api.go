@@ -22,3 +22,18 @@ The implementation for this is based on [jpillora/ipfilter](https://github.com/j
 Configuration for this is controlled via the `Filtering` block in the [config file](app-config-prod.json).
 
 Currently, specific IP addresses and subnet masks are supported. Blocking by default can be controlled via `Filtering -> BlockByDefault` and Proxy support using `Filtering -> TrustProxy`.
+
+## Detailed ZAP Logging Config
+There is an optional ZAP configuration file in this folder also:
+* [zap-logging-prod.json](zap-logging-prod.json)
+
+Details for configuring this file can be found [here](https://pkg.go.dev/go.uber.org/zap) and the exact structure can be found in [config.go](https://github.com/uber-go/zap/blob/master/config.go).
+
+To add this config to the startup please add the `ConfigFile` option to the `Logging` section of the configuration:
+```json
+{
+  "Logging": {
+    "ConfigFile": "config/zap-logging-prod.json"
+  }
+}
+```

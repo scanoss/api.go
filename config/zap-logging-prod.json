@@ -1,0 +1,11 @@
+{
+  "level": "info",
+  "encoding": "json",
+  "outputPaths": ["stderr", "/var/log/scanoss/api/scanoss-api-prod.log"],
+  "errorOutputPaths": ["stderr", "/var/log/scanoss/api/scanoss-api-prod.log"],
+  "encoderConfig": {
+      "messageKey": "message",
+      "levelKey": "level",
+      "levelEncoder": "lowercase"
+  }
+}

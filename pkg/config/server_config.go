@@ -42,9 +42,10 @@ type ServerConfig struct {
 		Mode  string `env:"APP_MODE"`  // dev or prod
 	}
 	Logging struct {
-		DynamicLogging bool   `env:"LOG_DYNAMIC"`      // true/false
-		DynamicPort    string `env:"LOG_DYNAMIC_PORT"` // host:port
-		ConfigFile     string `env:"LOG_JSON_CONFIG"`  // Json logging config file
+		DynamicLogging bool     `env:"LOG_DYNAMIC"`      // true/false
+		DynamicPort    string   `env:"LOG_DYNAMIC_PORT"` // host:port
+		ConfigFile     string   `env:"LOG_JSON_CONFIG"`  // Json logging config file
+		OutputPaths    []string `env:"LOG_OUTPUT_PATHS"` // List of outputs for logging (default stderr)
 	}
 	Scanning struct {
 		WfpLoc         string `env:"SCAN_WFP_TMP"`         // specific location to write temporary WFP files to
@@ -56,6 +57,7 @@ type ServerConfig struct {
 		Workers        int    `env:"SCAN_WORKERS"`         // Number of concurrent workers to use per scan request
 		TmpFileDelete  bool   `env:"SCAN_TMP_DELETE"`      // true/false
 		KeepFailedWfps bool   `env:"SCAN_KEEP_FAILED_WFP"` // true/false
+		ScanningURL    string `env:"SCANOSS_API_URL"`      // URL to present back in API responses - default https://osskb.org/api
 	}
 	TLS struct {
 		CertFile string `env:"SCAN_TLS_CERT"` // TLS Certificate

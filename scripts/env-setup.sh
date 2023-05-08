@@ -45,7 +45,8 @@ if ! mkdir -p /usr/local/etc/scanoss/api ; then
   echo "mkdir failed"
   exti 1
 fi
-if ! mkdir -p /var/log/scanoss/api ; then
+LOGS_DIR=/var/log/scanoss/api
+if ! mkdir -p "$LOGS_DIR" ; then
   echo "mkdir failed"
   exit 1
 fi
@@ -98,18 +99,28 @@ if ! cp scanoss-go-api.sh /usr/local/bin ; then
   exit 1
 fi
 # Copy in the configuration file if requested
+CONF_DIR=/usr/local/etc/scanoss/api
 CONF=app-config-prod.json
 if [ -n "$ENVIRONMENT" ] ; then
   CONF="app-config-${ENVIRONMENT}.json"
 fi
 if [ -f "$CONF" ] ; then
-  echo "Copying app config to /usr/local/etc/scanoss/api ..."
-  if ! cp "$CONF" /usr/local/etc/scanoss/api ; then
+  echo "Copying app config to $CONF_DIR ..."
+  if ! cp "$CONF" "$CONF_DIR/" ; then
     echo "copy $CONF failed"
     exit 1
   fi
 else
-  echo "Please put the config file into: /usr/local/etc/scanoss/api/$CONF"
+  if [ ! -f "$CONF_DIR/$CONF" ] ; then
+    read -p "Download sample $CONF (y/n) [y]? " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Nn]$ ]] ; then
+      echo "Please put the config file into: $CONF_DIR/$CONF"
+    else
+      if ! curl https://raw.githubusercontent.com/scanoss/api.go/main/config/app-config-prod.json > "$CONF_DIR/$CONF" ; then
+        echo "Warning: curl download failed"
+      fi
+    fi
 fi
 # Copy the binaries if requested
 BINARY=scanoss-go-api
@@ -123,7 +134,7 @@ if [ -f $BINARY ] ; then
 else
   echo "Please copy the API binary file into: /usr/local/bin/$BINARY"
 fi
-
+# Copy the engine binary if it exists
 SC_ENGINE=scanoss
 if [ -f $SC_ENGINE ] ; then
   echo "Copying $SC_ENGINE binary to /usr/bin ..."
@@ -145,8 +156,15 @@ if [ "$service_stopped" == "true" ] ; then
   fi
   systemctl status "$SC_SERVICE_NAME"
 fi
+if [ ! -f "$CONF_DIR/$CONF" ] ; then
+  echo
+  echo "Warning: Please create a configuration file in: $CONF_DIR/$CONF"
+  echo "A sample version can be downloaded from GitHub:"
+  echo "curl https://raw.githubusercontent.com/scanoss/api.go/main/config/app-config-prod.json > $CONF_DIR/$CONF"
+fi
 echo
-echo "Review service config in: /usr/local/etc/scanoss/api/$CONF"
+echo "Review service config in: $CONF_DIR/$CONF"
+echo "Logs are stored in: $LOGS_DIR"
 echo "Start the service using: systemctl start $SC_SERVICE_NAME"
 echo "Stop the service using: systemctl stop $SC_SERVICE_NAME"
 echo "Get service status using: systemctl status $SC_SERVICE_NAME"

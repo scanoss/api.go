@@ -33,3 +33,6 @@ local-build-commands.txt
 *.tar
 *.gz
 *.zip
+
+# Ignore logfiles
+*.log

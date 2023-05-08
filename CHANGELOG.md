@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Upcoming changes...
 
+## [1.1.0] - 2023-05-08
+### Added
+- Added log output configuration options (`OutputPaths`)
+  - Default `stderr`
+- Added custom response URL config option (`ScanningURL`)
+  - Default `https://osskb.org/api`
+
 ## [1.0.0] - 2023-01-23
 ### Added
 - Added GitHub action to build/unit test on push/pr

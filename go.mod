@@ -7,9 +7,9 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
 	github.com/jpillora/ipfilter v1.2.8
-	github.com/scanoss/zap-logging-helper v0.0.1
-	github.com/stretchr/testify v1.8.0
-	go.uber.org/zap v1.23.0
+	github.com/scanoss/zap-logging-helper v0.2.0
+	github.com/stretchr/testify v1.8.2
+	go.uber.org/zap v1.24.0
 )
 
 require (
