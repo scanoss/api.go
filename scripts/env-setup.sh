@@ -19,6 +19,10 @@ fi
 DEFAULT_ENV=""
 ENVIRONMENT="${1:-$DEFAULT_ENV}"
 
+CONF_DIR=/usr/local/etc/scanoss/api
+LOGS_DIR=/var/log/scanoss/api
+CONF_DOWNLOAD=https://raw.githubusercontent.com/scanoss/api.go/main/config/app-config-prod.json
+
 # Makes sure the scanoss user exists
 export RUNTIME_USER=scanoss
 if ! getent passwd $RUNTIME_USER > /dev/null ; then
@@ -41,11 +45,10 @@ else
 fi
 # Setup all the required folders and ownership
 echo "Setting up API system folders..."
-if ! mkdir -p /usr/local/etc/scanoss/api ; then
+if ! mkdir -p "$CONF_DIR" ; then
   echo "mkdir failed"
   exti 1
 fi
-LOGS_DIR=/var/log/scanoss/api
 if ! mkdir -p "$LOGS_DIR" ; then
   echo "mkdir failed"
   exit 1
@@ -99,7 +102,6 @@ if ! cp scanoss-go-api.sh /usr/local/bin ; then
   exit 1
 fi
 # Copy in the configuration file if requested
-CONF_DIR=/usr/local/etc/scanoss/api
 CONF=app-config-prod.json
 if [ -n "$ENVIRONMENT" ] ; then
   CONF="app-config-${ENVIRONMENT}.json"
@@ -116,11 +118,10 @@ else
     echo
     if [[ $REPLY =~ ^[Nn]$ ]] ; then
       echo "Please put the config file into: $CONF_DIR/$CONF"
-    else
-      if ! curl https://raw.githubusercontent.com/scanoss/api.go/main/config/app-config-prod.json > "$CONF_DIR/$CONF" ; then
-        echo "Warning: curl download failed"
-      fi
+    elif ! curl $CONF_DOWNLOAD > "$CONF_DIR/$CONF" ; then
+      echo "Warning: curl download failed"
     fi
+  fi
 fi
 # Copy the binaries if requested
 BINARY=scanoss-go-api
@@ -160,7 +161,7 @@ if [ ! -f "$CONF_DIR/$CONF" ] ; then
   echo
   echo "Warning: Please create a configuration file in: $CONF_DIR/$CONF"
   echo "A sample version can be downloaded from GitHub:"
-  echo "curl https://raw.githubusercontent.com/scanoss/api.go/main/config/app-config-prod.json > $CONF_DIR/$CONF"
+  echo "curl $CONF_DOWNLOAD > $CONF_DIR/$CONF"
 fi
 echo
 echo "Review service config in: $CONF_DIR/$CONF"
@@ -168,5 +169,5 @@ echo "Logs are stored in: $LOGS_DIR"
 echo "Start the service using: systemctl start $SC_SERVICE_NAME"
 echo "Stop the service using: systemctl stop $SC_SERVICE_NAME"
 echo "Get service status using: systemctl status $SC_SERVICE_NAME"
-echo "Count the number of running scans using: ps -ef | grep \$(pgrep scanoss-go-api) | grep -v grep | wc -l"
+echo "Count the number of running scans using: pgrep -P \$(pgrep -d, scanoss-go-api) | wc -l"
 echo
