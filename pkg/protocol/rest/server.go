@@ -20,6 +20,9 @@ package rest
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
@@ -79,7 +82,8 @@ func RunServer(config *myconfig.ServerConfig) error {
 		var httpErr error
 		if startTLS {
 			zlog.S.Infof("starting REST server with TLS on %v ...", srv.Addr)
-			httpErr = srv.ListenAndServeTLS(config.TLS.CertFile, config.TLS.KeyFile)
+			loadTLSConfig(config, srv)
+			httpErr = srv.ListenAndServeTLS("", "")
 		} else {
 			zlog.S.Infof("starting REST server on %v ...", srv.Addr)
 			httpErr = srv.ListenAndServe()
@@ -102,6 +106,94 @@ func RunServer(config *myconfig.ServerConfig) error {
 		zlog.S.Info("server gracefully stopped")
 	}
 	return nil
+}
+
+// loadTLSConfig loads the TLS config into memory (decrypting if required) and updates the Server config.
+func loadTLSConfig(config *myconfig.ServerConfig, srv *http.Server) {
+	pemBlocks := loadCertFile(config)
+	pkey := loadPrivateKey(config)
+	c, err := tls.X509KeyPair(pem.EncodeToMemory(pemBlocks[0]), pkey)
+	if err != nil {
+		zlog.S.Panicf("Failed to load TLS key pair (%v - %v): %v", config.TLS.KeyFile, config.TLS.CertFile, err)
+	}
+	cfg := &tls.Config{
+		MinVersion:       tls.VersionTLS12,
+		CurvePreferences: []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+		},
+		Certificates: []tls.Certificate{c},
+	}
+	// tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+	// tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+	// tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+	// tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+	// tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
+	srv.TLSConfig = cfg
+	srv.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0)
+}
+
+// loadCertFile load the certificate file into memory to use for hosting a TLS endpoint.
+func loadCertFile(config *myconfig.ServerConfig) []*pem.Block {
+	b, err := os.ReadFile(config.TLS.CertFile)
+	if err != nil {
+		zlog.S.Panicf("Failed to load Cert file - %v: %v", config.TLS.CertFile, err)
+	}
+	var pemBlocks []*pem.Block
+	var v *pem.Block
+	for {
+		v, b = pem.Decode(b)
+		if v == nil {
+			break
+		}
+		if v.Type != "RSA PRIVATE KEY" && v.Type != "PRIVATE KEY" {
+			pemBlocks = append(pemBlocks, v)
+		} else {
+			zlog.S.Warnf("Unknown certificate type (%v): %v", config.TLS.CertFile, v.Type)
+		}
+	}
+	return pemBlocks
+}
+
+// loadPrivateKey loads the private key from file and attempt to decrypt it (if it's encrypted).
+func loadPrivateKey(config *myconfig.ServerConfig) []byte {
+	var v *pem.Block
+	var pkey []byte
+	b, err := os.ReadFile(config.TLS.KeyFile)
+	if err != nil {
+		zlog.S.Panicf("Failed to load Key file - %v: %v", config.TLS.KeyFile, err)
+	}
+	for {
+		v, b = pem.Decode(b)
+		if v == nil {
+			break
+		}
+		if v.Type == "RSA PRIVATE KEY" || v.Type == "PRIVATE KEY" {
+			zlog.S.Debugf("Private Key: %v - %v", v.Type, v.Headers)
+			// pvt, err := openssl.LoadPrivateKeyFromPEMWithPassword(encryptedPEM, passPhrase)
+			//nolint:staticcheck
+			if x509.IsEncryptedPEMBlock(v) {
+				if len(config.TLS.Password) == 0 {
+					zlog.S.Panicf("Need to configure TLS Password to decrypt encrypted Key file: %v", config.TLS.KeyFile)
+				}
+				zlog.S.Infof("Decrypting key...")
+				//nolint:staticcheck
+				pkey, err = x509.DecryptPEMBlock(v, []byte(config.TLS.Password))
+				if err != nil {
+					zlog.S.Panicf("Failed to decrypt Key File (%v): %v", config.TLS.KeyFile, err)
+				}
+				pkey = pem.EncodeToMemory(&pem.Block{
+					Type:  v.Type,
+					Bytes: pkey,
+				})
+			} else {
+				pkey = pem.EncodeToMemory(v)
+			}
+		} else {
+			zlog.S.Warnf("Unexpected certificate type (%v): %v", config.TLS.KeyFile, v.Type)
+		}
+	}
+	return pkey
 }
 
 // checkFile validates if the given file exists or not.

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Upcoming changes...
 
+## [1.2.0] - 2023-05-18
+### Added
+- Added support for password protected TLS Key Files (`Password`)
+
 ## [1.1.0] - 2023-05-08
 ### Added
 - Added log output configuration options (`OutputPaths`)
@@ -50,3 +54,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [0.5.0]: https://github.com/scanoss/api.go/compare/v0.4.1...v0.5.0
 [0.7.0]: https://github.com/scanoss/api.go/compare/v0.5.0...v0.7.0
 [1.0.0]: https://github.com/scanoss/api.go/compare/v0.7.0...v1.0.0
+[1.1.0]: https://github.com/scanoss/api.go/compare/v1.0.0...v1.1.0
+[1.2.0]: https://github.com/scanoss/api.go/compare/v1.1.0...v1.2.0

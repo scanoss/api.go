@@ -60,8 +60,9 @@ type ServerConfig struct {
 		ScanningURL    string `env:"SCANOSS_API_URL"`      // URL to present back in API responses - default https://osskb.org/api
 	}
 	TLS struct {
-		CertFile string `env:"SCAN_TLS_CERT"` // TLS Certificate
-		KeyFile  string `env:"SCAN_TLS_KEY"`  // Private TLS Key
+		CertFile string `env:"SCAN_TLS_CERT"`   // TLS Certificate
+		KeyFile  string `env:"SCAN_TLS_KEY"`    // Private TLS Key
+		Password string `env:"SCAN_TLS_PASSWD"` // TLS Decryption Password
 	}
 	Filtering struct {
 		AllowListFile  string `env:"SCAN_ALLOW_LIST"`       // Allow list file for incoming connections
