@@ -54,6 +54,7 @@ func RunServer(config *myconfig.ServerConfig) error {
 		zlog.S.Warnf("Scanning engine test failed. Scan requests are likely to fail.")
 		zlog.S.Warnf("Please make sure that %v is accessible", config.Scanning.ScanBinary)
 	}
+	apiService.SetupKBDetailsCron()
 	// Set up the endpoint routing
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", service.WelcomeMsg).Methods(http.MethodGet)
@@ -62,6 +63,7 @@ func RunServer(config *myconfig.ServerConfig) error {
 	router.HandleFunc("/api/health-check", service.HealthCheck).Methods(http.MethodGet)
 	router.HandleFunc("/api/metrics/{type}", service.MetricsHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/file_contents/{md5}", apiService.FileContents).Methods(http.MethodGet)
+	router.HandleFunc("/api/kb/details", apiService.KBDetails).Methods(http.MethodGet)
 	router.HandleFunc("/api/license/obligations/{license}", apiService.LicenseDetails).Methods(http.MethodGet)
 	router.HandleFunc("/api/scan/direct", apiService.ScanDirect).Methods(http.MethodPost)
 	router.HandleFunc("/api/sbom/attribution", apiService.SbomAttribution).Methods(http.MethodPost)
