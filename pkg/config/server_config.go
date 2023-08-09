@@ -58,6 +58,7 @@ type ServerConfig struct {
 		TmpFileDelete  bool   `env:"SCAN_TMP_DELETE"`      // true/false
 		KeepFailedWfps bool   `env:"SCAN_KEEP_FAILED_WFP"` // true/false
 		ScanningURL    string `env:"SCANOSS_API_URL"`      // URL to present back in API responses - default https://osskb.org/api
+		HPSMEnabled    bool   `env:"SCAN_HPSM_ENABLED"`    // Enable HPSM (High Precision Snippet Matching) or not (default true)
 	}
 	TLS struct {
 		CertFile string `env:"SCAN_TLS_CERT"`   // TLS Certificate
@@ -101,6 +102,7 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Scanning.Workers = 1       // Default to single threaded scanning
 	cfg.Scanning.ScanTimeout = 120 // Default scan engine timeout to 2 minutes
 	cfg.Scanning.WfpGrouping = 3   // Default number of WFPs to group into a single scan request (when Workers > 1)
+	cfg.Scanning.HPSMEnabled = true
 }
 
 // LoadFile loads the specified file and returns its contents in a string array.

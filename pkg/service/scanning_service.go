@@ -31,6 +31,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// getFlags extracts the form values from a request returns the flags, scan type, and sbom data if detected.
 func (s APIService) getFlags(r *http.Request, zs *zap.SugaredLogger) (string, string, string) {
 	flags := strings.TrimSpace(r.FormValue("flags"))   // Check form for Scanning flags
 	scanType := strings.TrimSpace(r.FormValue("type")) // Check form for SBOM type
@@ -198,6 +199,9 @@ func (s APIService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ERROR no WFP file contents (file=...) supplied", http.StatusBadRequest)
 		return
 	}
+	if !s.validateHPSM(contentsTrimmed, zs, w) {
+		return
+	}
 	counters.incRequestAmount("files", int64(wfpCount))
 	zs.Debugf("Need to scan %v files", wfpCount)
 	// Only one worker selected, so send the whole WFP in a single command
@@ -206,6 +210,21 @@ func (s APIService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 	} else {
 		s.scanThreaded(wfps, wfpCount, flags, scanType, sbomFilename, zs, w)
 	}
+}
+
+// validateHPSM checks if HPSM is enabled or not. If it's not and HPSM is detected. Fail the scan request.
+func (s APIService) validateHPSM(contents []byte, zs *zap.SugaredLogger, w http.ResponseWriter) bool {
+	if !s.config.Scanning.HPSMEnabled {
+		if s.config.App.Trace {
+			zs.Debugf("Checking if HPSM is present in the submitted WFP...")
+		}
+		if strings.Contains(string(contents), "hpsm=") {
+			zs.Errorf("HPSM (hpsm=...) detected in WFPs and HPSM support is disabled")
+			http.Error(w, "ERROR HPSM detected in WFP. HPSM is disabled", http.StatusForbidden)
+			return false
+		}
+	}
+	return true
 }
 
 // workerScan attempts to process all incoming scanning jobs and dumps the results into the subsequent results channel.
