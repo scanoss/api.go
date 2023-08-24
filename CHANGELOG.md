@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Upcoming changes...
 
-## [1.2.2] - 2023-08-09
+## [1.2.2] - 2023-08-24
 ### Added
 - Added support for `/api/kb/details` endpoint
 

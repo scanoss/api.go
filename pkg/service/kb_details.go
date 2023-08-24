@@ -60,7 +60,7 @@ func (s APIService) KBDetails(w http.ResponseWriter, r *http.Request) {
 	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
 	w.Header().Set(ContentTypeKey, ApplicationJSON)
 	w.WriteHeader(http.StatusOK)
-	printResponse(w, fmt.Sprintln(kbDetails), zlog.S, true)
+	printResponse(w, fmt.Sprintf("%s\n", kbDetails), zlog.S, true)
 }
 
 // loadKBDetails attempts to scan a file to load the latest KB details from the server.

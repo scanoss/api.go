@@ -21,6 +21,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,7 +53,7 @@ func TestKBDetails(t *testing.T) {
 	bodyStr := string(body)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 	expected := `{"kb_version": { "monthly": "23.07", "daily": "23.08.09"}}`
-	assert.Equal(t, expected+"\n", bodyStr)
+	assert.Equal(t, expected, strings.TrimSpace(bodyStr))
 	fmt.Println("Status: ", resp.StatusCode)
 	fmt.Println("Type: ", resp.Header.Get("Content-Type"))
 	fmt.Println("Body: ", bodyStr)
