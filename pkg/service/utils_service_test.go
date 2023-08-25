@@ -193,3 +193,23 @@ func TestApiService(t *testing.T) {
 
 	printResponse(w, "test message", zs, false)
 }
+
+func TestHeadResponse(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	req := httptest.NewRequest(http.MethodHead, "http://localhost/api/health", nil)
+	w := httptest.NewRecorder()
+	HeadResponse(w, req)
+	resp := w.Result()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("an error was not expected when reading from request: %v", err)
+	}
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	fmt.Println("Status: ", resp.StatusCode)
+	fmt.Println("Type: ", resp.Header.Get("Content-Type"))
+	fmt.Println("Body: ", string(body))
+}

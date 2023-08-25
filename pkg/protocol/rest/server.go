@@ -58,9 +58,13 @@ func RunServer(config *myconfig.ServerConfig) error {
 	// Set up the endpoint routing
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", service.WelcomeMsg).Methods(http.MethodGet)
+	router.HandleFunc("/", service.HeadResponse).Methods(http.MethodHead)
 	router.HandleFunc("/api/", service.WelcomeMsg).Methods(http.MethodGet)
+	router.HandleFunc("/api/", service.HeadResponse).Methods(http.MethodHead)
 	router.HandleFunc("/api/health", service.HealthCheck).Methods(http.MethodGet)
+	router.HandleFunc("/api/health", service.HeadResponse).Methods(http.MethodHead)
 	router.HandleFunc("/api/health-check", service.HealthCheck).Methods(http.MethodGet)
+	router.HandleFunc("/api/health-check", service.HeadResponse).Methods(http.MethodHead)
 	router.HandleFunc("/api/metrics/{type}", service.MetricsHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/file_contents/{md5}", apiService.FileContents).Methods(http.MethodGet)
 	router.HandleFunc("/api/kb/details", apiService.KBDetails).Methods(http.MethodGet)

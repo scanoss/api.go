@@ -95,6 +95,12 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 	printResponse(w, fmt.Sprintln(`{"alive": true}`), zlog.S, true)
 }
 
+// HeadResponse responds with the HEAD OK Status for the requested path.
+func HeadResponse(w http.ResponseWriter, r *http.Request) {
+	zlog.S.Debugf("%v HEAD request from %v", r.URL.Path, r.RemoteAddr)
+	w.WriteHeader(http.StatusOK)
+}
+
 // MetricsHandler responds with the metrics for the requested type.
 func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)

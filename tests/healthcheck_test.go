@@ -48,6 +48,13 @@ func (s *E2EHealthSuite) TestHappyWelcomeMsg() {
 	fmt.Println("Status: ", resp.StatusCode)
 	fmt.Println("Type: ", resp.Header.Get("Content-Type"))
 	fmt.Println("Body: ", bodyStr)
+
+	resp2, err := c.Head(fmt.Sprintf("%v/", hostPort))
+	if err != nil {
+		s.Failf("an error was not expected when sending request.", "error: %v", err)
+	}
+	s.Equal(http.StatusOK, resp2.StatusCode)
+	fmt.Println("Status: ", resp.StatusCode)
 }
 
 func (s *E2EHealthSuite) TestHappyHealthcheck() {
@@ -66,6 +73,14 @@ func (s *E2EHealthSuite) TestHappyHealthcheck() {
 	fmt.Println("Status: ", resp.StatusCode)
 	fmt.Println("Type: ", resp.Header.Get("Content-Type"))
 	fmt.Println("Body: ", bodyStr)
+
+	// Test the HEAD call also
+	resp2, err := c.Head(fmt.Sprintf("%v/api/health-check", hostPort))
+	if err != nil {
+		s.Failf("an error was not expected when sending request.", "error: %v", err)
+	}
+	s.Equal(http.StatusOK, resp2.StatusCode)
+	fmt.Println("Status: ", resp.StatusCode)
 }
 
 func (s *E2EHealthSuite) TestMetrics() {

@@ -20,6 +20,8 @@ curl -X GET  http://localhost:5443/api/license/obligations/MIT > obligations.txt
 
 curl -X GET  http://localhost:5443/api/api/health-check
 
+curl --head  http://localhost:5443/api/health-check
+
 # Service Metrics
 
 curl -X GET  http://localhost:5443/api/api/metrics/all
