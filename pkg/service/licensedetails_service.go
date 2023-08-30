@@ -32,7 +32,14 @@ func (s APIService) LicenseDetails(w http.ResponseWriter, r *http.Request) {
 	counters.incRequest("license_details")
 	reqID := getReqID(r)
 	w.Header().Set(ResponseIDKey, reqID)
-	zs := sugaredLogger(context.WithValue(r.Context(), RequestContextKey{}, reqID)) // Setup logger with context
+	var logContext context.Context
+	if s.config.Telemetry.Enabled {
+		_, logContext = getSpan(r.Context(), reqID)
+		oltpMetrics.licenseDetailsCounter.Add(logContext, 1)
+	} else {
+		logContext = requestContext(r.Context(), reqID, "", "")
+	}
+	zs := sugaredLogger(logContext) // Setup logger with context
 	vars := mux.Vars(r)
 	zs.Infof("%v request from %v - %v", r.URL.Path, r.RemoteAddr, vars)
 	if len(vars) == 0 {

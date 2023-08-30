@@ -38,40 +38,46 @@ func TestLicenseDetails(t *testing.T) {
 	apiService := NewAPIService(myConfig)
 
 	tests := []struct {
-		name   string
-		input  map[string]string
-		binary string
-		want   int
+		name      string
+		input     map[string]string
+		binary    string
+		telemetry bool
+		want      int
 	}{
 		{
-			name:   "Test License Details - empty",
-			binary: "../../test-support/scanoss.sh",
-			input:  map[string]string{},
-			want:   http.StatusBadRequest,
+			name:      "Test License Details - empty",
+			binary:    "../../test-support/scanoss.sh",
+			telemetry: true,
+			input:     map[string]string{},
+			want:      http.StatusBadRequest,
 		},
 		{
-			name:   "Test License Details - wrong key",
-			binary: "../../test-support/scanoss.sh",
-			input:  map[string]string{"invalid": "wrong"},
-			want:   http.StatusBadRequest,
+			name:      "Test License Details - wrong key",
+			binary:    "../../test-support/scanoss.sh",
+			telemetry: true,
+			input:     map[string]string{"invalid": "wrong"},
+			want:      http.StatusBadRequest,
 		},
 		{
-			name:   "Test License Details - invalid binary",
-			binary: "scan-binary-does-not-exist.sh",
-			input:  map[string]string{"license": "GPL"},
-			want:   http.StatusInternalServerError,
+			name:      "Test License Details - invalid binary",
+			binary:    "scan-binary-does-not-exist.sh",
+			telemetry: true,
+			input:     map[string]string{"license": "GPL"},
+			want:      http.StatusInternalServerError,
 		},
 		{
-			name:   "Test License Details - success",
-			binary: "../../test-support/scanoss.sh",
-			input:  map[string]string{"license": "MIT"},
-			want:   http.StatusOK,
+			name:      "Test License Details - success",
+			binary:    "../../test-support/scanoss.sh",
+			telemetry: false,
+			input:     map[string]string{"license": "MIT"},
+			want:      http.StatusOK,
 		},
 		{
-			name:   "Test License Details - success 2",
-			binary: "../../test-support/scanoss.sh",
-			input:  map[string]string{"license": "Apache-2.0"},
-			want:   http.StatusOK,
+			name:      "Test License Details - success 2",
+			binary:    "../../test-support/scanoss.sh",
+			telemetry: false,
+			input:     map[string]string{"license": "Apache-2.0"},
+			want:      http.StatusOK,
 		},
 	}
 
@@ -85,6 +91,7 @@ func TestLicenseDetails(t *testing.T) {
 				}
 			}
 			myConfig.Scanning.ScanBinary = test.binary
+			myConfig.Telemetry.Enabled = test.telemetry
 			req := newReq("GET", "http://localhost/api/license/obligations/{license}", "", test.input)
 			w := httptest.NewRecorder()
 			apiService.LicenseDetails(w, req)

@@ -56,7 +56,13 @@ func (s APIService) SetupKBDetailsCron() {
 func (s APIService) KBDetails(w http.ResponseWriter, r *http.Request) {
 	reqID := getReqID(r)
 	w.Header().Set(ResponseIDKey, reqID)
-	zs := sugaredLogger(context.WithValue(r.Context(), RequestContextKey{}, reqID)) // Setup logger with context
+	var logContext context.Context
+	if s.config.Telemetry.Enabled {
+		_, logContext = getSpan(r.Context(), reqID)
+	} else {
+		logContext = requestContext(r.Context(), reqID, "", "")
+	}
+	zs := sugaredLogger(logContext) // Setup logger with context
 	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
 	w.Header().Set(ContentTypeKey, ApplicationJSON)
 	w.WriteHeader(http.StatusOK)

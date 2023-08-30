@@ -29,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestScanEngine(t *testing.T) {
+func TestScanEngineWithTelemetry(t *testing.T) {
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -38,6 +38,44 @@ func TestScanEngine(t *testing.T) {
 	myConfig := setupConfig(t)
 	myConfig.App.Trace = true
 	myConfig.Scanning.ScanDebug = true
+	myConfig.Telemetry.Enabled = true
+	apiService := NewAPIService(myConfig)
+
+	tests := []struct {
+		name    string
+		binary  string
+		wantErr bool
+	}{
+		{
+			name:    "Test Engine - invalid binary",
+			binary:  ".scan-binary-does-not-exist.sh",
+			wantErr: true,
+		},
+		{
+			name:    "Test Engine - valid binary",
+			binary:  "../../test-support/scanoss.sh",
+			wantErr: false,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			myConfig.Scanning.ScanBinary = test.binary
+			err := apiService.TestEngine()
+			assert.Equal(t, test.wantErr, err != nil)
+		})
+	}
+}
+
+func TestScanEngineNoTelemetry(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	myConfig := setupConfig(t)
+	myConfig.App.Trace = true
+	myConfig.Scanning.ScanDebug = true
+	myConfig.Telemetry.Enabled = false
 	apiService := NewAPIService(myConfig)
 
 	tests := []struct {
@@ -81,6 +119,7 @@ func TestScanDirectSingle(t *testing.T) {
 		fieldName string
 		file      string
 		binary    string
+		telemetry bool
 		scanType  string
 		assets    string
 		want      int
@@ -88,6 +127,7 @@ func TestScanDirectSingle(t *testing.T) {
 		{
 			name:      "Scanning - wrong name",
 			binary:    "../../test-support/scanoss.sh",
+			telemetry: true,
 			fieldName: "wrong-name",
 			file:      "./tests/fingers-empty.wfp",
 			want:      http.StatusBadRequest,
@@ -95,6 +135,7 @@ func TestScanDirectSingle(t *testing.T) {
 		{
 			name:      "Scanning - empty file",
 			binary:    "../../test-support/scanoss.sh",
+			telemetry: true,
 			fieldName: "file",
 			file:      "./tests/fingers-empty.wfp",
 			want:      http.StatusBadRequest,
@@ -102,6 +143,7 @@ func TestScanDirectSingle(t *testing.T) {
 		{
 			name:      "Scanning - invalid content",
 			binary:    "../../test-support/scanoss.sh",
+			telemetry: false,
 			fieldName: "file",
 			file:      "./tests/fingers-invalid.wfp",
 			want:      http.StatusBadRequest,
@@ -109,6 +151,7 @@ func TestScanDirectSingle(t *testing.T) {
 		{
 			name:      "Scanning - invalid binary",
 			binary:    ".scan-binary-does-not-exist.sh",
+			telemetry: false,
 			fieldName: "file",
 			file:      "./tests/fingers.wfp",
 			want:      http.StatusInternalServerError,
@@ -116,6 +159,7 @@ func TestScanDirectSingle(t *testing.T) {
 		{
 			name:      "Scanning - invalid scan type",
 			binary:    "../../test-support/scanoss.sh",
+			telemetry: false,
 			fieldName: "file",
 			file:      "./tests/fingers.wfp",
 			scanType:  "does-not-exist",
@@ -125,6 +169,7 @@ func TestScanDirectSingle(t *testing.T) {
 		{
 			name:      "Scanning - success 1",
 			binary:    "../../test-support/scanoss.sh",
+			telemetry: false,
 			fieldName: "file",
 			file:      "./tests/fingers.wfp",
 			scanType:  "identify",
@@ -134,6 +179,7 @@ func TestScanDirectSingle(t *testing.T) {
 		{
 			name:      "Scanning - success 2",
 			binary:    "../../test-support/scanoss.sh",
+			telemetry: true,
 			fieldName: "filename",
 			file:      "./tests/fingers.wfp",
 			scanType:  "blacklist",
@@ -151,6 +197,7 @@ func TestScanDirectSingle(t *testing.T) {
 				}
 			}
 			myConfig.Scanning.ScanBinary = test.binary
+			myConfig.Telemetry.Enabled = test.telemetry
 			filePath := test.file
 			fieldName := test.fieldName
 			postBody := new(bytes.Buffer)
@@ -206,7 +253,7 @@ func TestScanDirectThreaded(t *testing.T) {
 	myConfig.App.Trace = true
 	myConfig.Scanning.ScanDebug = true
 	myConfig.Scanning.Workers = 2
-	myConfig.Scanning.WfpGrouping = 1
+	myConfig.Scanning.WfpGrouping = 2
 	apiService := NewAPIService(myConfig)
 
 	tests := []struct {
@@ -249,6 +296,13 @@ func TestScanDirectThreaded(t *testing.T) {
 			binary:    "../../test-support/scanoss.sh",
 			fieldName: "file",
 			file:      "./tests/fingers.wfp",
+			want:      http.StatusOK,
+		},
+		{
+			name:      "Scanning - success 3",
+			binary:    "../../test-support/scanoss.sh",
+			fieldName: "file",
+			file:      "./tests/single-finger.wfp",
 			want:      http.StatusOK,
 		},
 		{

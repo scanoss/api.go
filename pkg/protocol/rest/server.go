@@ -31,15 +31,27 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/otel/sdk/resource"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
+
 	"github.com/gorilla/mux"
 	"github.com/jpillora/ipfilter"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	myconfig "scanoss.com/go-api/pkg/config"
 	"scanoss.com/go-api/pkg/service"
 )
 
 // RunServer runs REST service to publish.
-func RunServer(config *myconfig.ServerConfig) error {
+func RunServer(config *myconfig.ServerConfig, version string) error {
 	// Check if TLS should be enabled or not
 	startTLS, err := checkTLS(config)
 	if err != nil {
@@ -48,6 +60,13 @@ func RunServer(config *myconfig.ServerConfig) error {
 	allowedIPs, deniedIPs, err := loadFiltering(config)
 	if err != nil {
 		return err
+	}
+	if config.Telemetry.Enabled {
+		oltpShutdown, err := initProviders(config, version)
+		if err != nil {
+			return err
+		}
+		defer oltpShutdown()
 	}
 	apiService := service.NewAPIService(config)
 	if err := apiService.TestEngine(); err != nil {
@@ -71,6 +90,10 @@ func RunServer(config *myconfig.ServerConfig) error {
 	router.HandleFunc("/api/license/obligations/{license}", apiService.LicenseDetails).Methods(http.MethodGet)
 	router.HandleFunc("/api/scan/direct", apiService.ScanDirect).Methods(http.MethodPost)
 	router.HandleFunc("/api/sbom/attribution", apiService.SbomAttribution).Methods(http.MethodPost)
+	// Setup Open Telemetry (OTEL)
+	if config.Telemetry.Enabled {
+		router.Use(otelmux.Middleware("scanoss-api"))
+	}
 	srv := &http.Server{
 		Handler:           router,
 		Addr:              fmt.Sprintf("%s:%s", config.App.Addr, config.App.Port),
@@ -136,7 +159,7 @@ func loadTLSConfig(config *myconfig.ServerConfig, srv *http.Server) {
 	// tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
 	// tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
 	srv.TLSConfig = cfg
-	srv.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0)
+	srv.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
 }
 
 // loadCertFile load the certificate file into memory to use for hosting a TLS endpoint.
@@ -282,4 +305,76 @@ func loadFiltering(config *myconfig.ServerConfig) ([]string, []string, error) {
 		}
 	}
 	return allowedIPs, deniedIPs, nil
+}
+
+// initProviders sets up the OLTP Meter and Trace providers and the OLTP gRPC exporter.
+func initProviders(config *myconfig.ServerConfig, version string) (func(), error) {
+	zlog.L.Info("Setting up Open Telemetry providers.")
+	// Setup resource for the providers
+	ctx := context.Background()
+	res, err := resource.New(ctx,
+		resource.WithFromEnv(),
+		resource.WithProcess(),
+		resource.WithTelemetrySDK(),
+		resource.WithHost(),
+		resource.WithAttributes(
+			// the service name & version used to display traces in backends
+			semconv.ServiceName("scanoss-api"),
+			semconv.ServiceVersion(version),
+		),
+	)
+	if err != nil {
+		zlog.S.Errorf("Failed to create oltp resource: %v", err)
+		return nil, err
+	}
+	// Setup meter provider & exporter
+	metricExp, err := otlpmetricgrpc.New(ctx,
+		otlpmetricgrpc.WithInsecure(),
+		otlpmetricgrpc.WithEndpoint(config.Telemetry.OltpExporter),
+	)
+	if err != nil {
+		zlog.S.Errorf("Failed to setup oltp metric grpc: %v", err)
+		return nil, err
+	}
+	meterProvider := sdkmetric.NewMeterProvider(
+		sdkmetric.WithResource(res),
+		sdkmetric.WithReader(
+			sdkmetric.NewPeriodicReader(
+				metricExp,
+				sdkmetric.WithInterval(2*time.Second),
+			),
+		),
+	)
+	otel.SetMeterProvider(meterProvider)
+	// Setup trace provider & exporter
+	traceClient := otlptracegrpc.NewClient(
+		otlptracegrpc.WithInsecure(),
+		otlptracegrpc.WithEndpoint(config.Telemetry.OltpExporter),
+	)
+	traceExp, err := otlptrace.New(ctx, traceClient)
+	if err != nil {
+		zlog.S.Errorf("Failed to create collector trace exporter: %v", err)
+		return nil, err
+	}
+	bsp := sdktrace.NewBatchSpanProcessor(traceExp)
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(myconfig.GetTraceSampler(config)),
+		sdktrace.WithResource(res),
+		sdktrace.WithSpanProcessor(bsp),
+	)
+	// set global propagator to trace context (the default is no-op).
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	otel.SetTracerProvider(tracerProvider)
+	// Return the function use to shut down the collector before exiting
+	return func() {
+		cxt, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		if err := traceExp.Shutdown(cxt); err != nil {
+			otel.Handle(err)
+		}
+		// pushes any last exports to the receiver
+		if err := meterProvider.Shutdown(cxt); err != nil {
+			otel.Handle(err)
+		}
+	}, nil
 }

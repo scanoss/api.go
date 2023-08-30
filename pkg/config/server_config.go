@@ -23,6 +23,8 @@ import (
 	"os"
 	"strings"
 
+	"go.opentelemetry.io/otel/sdk/trace"
+
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
 )
@@ -46,6 +48,10 @@ type ServerConfig struct {
 		DynamicPort    string   `env:"LOG_DYNAMIC_PORT"` // host:port
 		ConfigFile     string   `env:"LOG_JSON_CONFIG"`  // Json logging config file
 		OutputPaths    []string `env:"LOG_OUTPUT_PATHS"` // List of outputs for logging (default stderr)
+	}
+	Telemetry struct {
+		Enabled      bool   `env:"OTEL_ENABLED"`       // true/false
+		OltpExporter string `env:"OTEL_EXPORTER_OLTP"` // OTEL OLTP exporter (default 0.0.0.0:4317)
 	}
 	Scanning struct {
 		WfpLoc         string `env:"SCAN_WFP_TMP"`         // specific location to write temporary WFP files to
@@ -103,6 +109,8 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Scanning.ScanTimeout = 120 // Default scan engine timeout to 2 minutes
 	cfg.Scanning.WfpGrouping = 3   // Default number of WFPs to group into a single scan request (when Workers > 1)
 	cfg.Scanning.HPSMEnabled = true
+	cfg.Telemetry.Enabled = false
+	cfg.Telemetry.OltpExporter = "0.0.0.0:4317" // Default OTEL OLTP gRPC Exporter endpoint
 }
 
 // LoadFile loads the specified file and returns its contents in a string array.
@@ -127,4 +135,16 @@ func LoadFile(filename string) ([]string, error) {
 		}
 	}
 	return list, nil
+}
+
+// GetTraceSampler determines what level of trace sampling to run.
+func GetTraceSampler(cfg *ServerConfig) trace.Sampler {
+	switch cfg.App.Mode {
+	case "dev":
+		return trace.AlwaysSample()
+	case "prod":
+		return trace.ParentBased(trace.TraceIDRatioBased(0.5))
+	default:
+		return trace.AlwaysSample()
+	}
 }

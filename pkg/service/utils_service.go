@@ -27,6 +27,15 @@ import (
 	"strings"
 	"sync"
 
+	"go.opentelemetry.io/otel/codes"
+
+	oteltrace "go.opentelemetry.io/otel/trace"
+
+	"go.opentelemetry.io/otel/metric"
+
+	"go.opentelemetry.io/otel"
+	"go.uber.org/zap/zapcore"
+
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
@@ -42,10 +51,18 @@ const (
 	ApplicationJSON = "application/json"
 	TextPlain       = "text/plain"
 	ReqLogKey       = "reqId"
+	SpanLogKey      = "span_id"
+	TraceLogKey     = "trace_id"
 )
 
 // RequestContextKey Request ID Key name for using with Context.
 type RequestContextKey struct{}
+
+// SpanContextKey Span ID Key name for using with Context.
+type SpanContextKey struct{}
+
+// TraceContextKey Trace ID Key name for using with Context.
+type TraceContextKey struct{}
 
 // APIService details.
 type APIService struct {
@@ -54,6 +71,7 @@ type APIService struct {
 
 // NewAPIService instantiates an API Service instance for servicing the API requests.
 func NewAPIService(config *myconfig.ServerConfig) *APIService {
+	setupMetrics()
 	return &APIService{config: config}
 }
 
@@ -65,6 +83,31 @@ type counterStruct struct {
 
 var counters = counterStruct{
 	values: make(map[string]int64),
+}
+
+// Structure for storing OTEL metrics.
+type metricsCounters struct {
+	scanCounter               metric.Int64Counter
+	scanFileCounter           metric.Int64Counter
+	fileContentsCounter       metric.Int64Counter
+	licenseDetailsCounter     metric.Int64Counter
+	attributionDetailsCounter metric.Int64Counter
+	scanHistogram             metric.Int64Histogram
+	scanFileHistogram         metric.Int64Histogram
+}
+
+var oltpMetrics = metricsCounters{}
+
+// setupMetrics configures all the metrics recorders for the platform.
+func setupMetrics() {
+	meter := otel.Meter("scanoss.com/go-api")
+	oltpMetrics.scanCounter, _ = meter.Int64Counter("scanoss-api.scan.req_count", metric.WithDescription("The number of scan requests received"))
+	oltpMetrics.scanFileCounter, _ = meter.Int64Counter("scanoss-api.scan.file_count", metric.WithDescription("The number of scan request files received"))
+	oltpMetrics.fileContentsCounter, _ = meter.Int64Counter("scanoss-api.contents.req_count", metric.WithDescription("The number of file contents requests received"))
+	oltpMetrics.licenseDetailsCounter, _ = meter.Int64Counter("scanoss-api.license.req_count", metric.WithDescription("The number of license details requests received"))
+	oltpMetrics.attributionDetailsCounter, _ = meter.Int64Counter("scanoss-api.attribution.req_count", metric.WithDescription("The number of license attribution requests received"))
+	oltpMetrics.scanHistogram, _ = meter.Int64Histogram("scanoss-api.scan.req_time", metric.WithDescription("The time taken to run a scan request"))
+	oltpMetrics.scanFileHistogram, _ = meter.Int64Histogram("scanoss-api.scan.file_time", metric.WithDescription("The average time taken to scan a single file in a request"))
 }
 
 // incRequest increments the count for the given request type.
@@ -174,7 +217,7 @@ func closeMultipartFile(f multipart.File, zs *zap.SugaredLogger) {
 	}
 }
 
-// getFormFile attmempts to get the contents of the form file from the supplied request.
+// getFormFile attempts to get the contents of the form file from the supplied request.
 func (s APIService) getFormFile(r *http.Request, zs *zap.SugaredLogger, formType string) ([]byte, error) {
 	var contents []byte
 	var err error
@@ -260,9 +303,54 @@ func getReqID(r *http.Request) string {
 func sugaredLogger(ctx context.Context) *zap.SugaredLogger {
 	newLogger := zlog.L
 	if ctx != nil {
+		var fields []zapcore.Field
 		if ctxRqID, ok := ctx.Value(RequestContextKey{}).(string); ok {
-			newLogger = newLogger.With(zap.String(ReqLogKey, ctxRqID))
+			fields = append(fields, zap.String(ReqLogKey, ctxRqID))
+		}
+		if ctxSpanID, ok := ctx.Value(SpanContextKey{}).(string); ok {
+			fields = append(fields, zap.String(SpanLogKey, ctxSpanID))
+		}
+		if ctxTraceID, ok := ctx.Value(TraceContextKey{}).(string); ok {
+			fields = append(fields, zap.String(TraceLogKey, ctxTraceID))
+		}
+		if len(fields) > 0 {
+			newLogger = newLogger.With(fields...)
 		}
 	}
 	return newLogger.Sugar()
+}
+
+// requestContext returns a new context with a Request ID and optional Span & Trace IDs.
+func requestContext(ctx context.Context, reqID, spanID, traceID string) context.Context {
+	var logContext context.Context
+	logContext = context.WithValue(ctx, RequestContextKey{}, reqID)
+	if len(spanID) > 0 {
+		logContext = context.WithValue(logContext, SpanContextKey{}, spanID)
+	}
+	if len(traceID) > 0 {
+		logContext = context.WithValue(logContext, TraceContextKey{}, traceID)
+	}
+	return logContext
+}
+
+// getSpan retrieves the span from the context (if set) and adds tracing data to the context for logging.
+func getSpan(context context.Context, reqID string) (oteltrace.Span, context.Context) {
+	span := oteltrace.SpanFromContext(context)
+	spanContext := oteltrace.SpanFromContext(context).SpanContext()
+	logContext := requestContext(context, reqID, spanContext.SpanID().String(), spanContext.TraceID().String())
+	return span, logContext
+}
+
+// setSpanError sets the span status to error with a message.
+func setSpanError(span oteltrace.Span, msg string) {
+	if span != nil {
+		span.SetStatus(codes.Error, msg)
+	}
+}
+
+// addSpanEvent adds the given event to the specified span.
+func addSpanEvent(span oteltrace.Span, msg string, options ...oteltrace.EventOption) {
+	if span != nil {
+		span.AddEvent(msg, options...)
+	}
 }
