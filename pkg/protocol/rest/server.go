@@ -28,6 +28,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -320,7 +321,7 @@ func initProviders(config *myconfig.ServerConfig, version string) (func(), error
 		resource.WithAttributes(
 			// the service name & version used to display traces in backends
 			semconv.ServiceName("scanoss-api"),
-			semconv.ServiceVersion(version),
+			semconv.ServiceVersion(strings.TrimSpace(version)),
 		),
 	)
 	if err != nil {
