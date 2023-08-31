@@ -39,12 +39,13 @@ type matchStructure []struct {
 	} `json:"server"`
 }
 
-var kbDetails string // KB Details JSON string
+var kbDetails string     // KB Details JSON string
+var engineVersion string // Version of the engine in use
 
 // SetupKBDetailsCron sets up a background cron to update the KB version once an hour.
 func (s APIService) SetupKBDetailsCron() {
 	scheduler := gocron.NewScheduler(time.UTC)
-	_, err := scheduler.Every(60).Minutes().Do(s.loadKBDetails)
+	_, err := scheduler.Every(30).Minutes().Do(s.loadKBDetails)
 	if err != nil {
 		zlog.S.Warnf("Problem setting up KB details cron: %v", err)
 		return
@@ -56,7 +57,13 @@ func (s APIService) SetupKBDetailsCron() {
 func (s APIService) KBDetails(w http.ResponseWriter, r *http.Request) {
 	reqID := getReqID(r)
 	w.Header().Set(ResponseIDKey, reqID)
-	zs := sugaredLogger(context.WithValue(r.Context(), RequestContextKey{}, reqID)) // Setup logger with context
+	var logContext context.Context
+	if s.config.Telemetry.Enabled {
+		_, logContext = getSpan(r.Context(), reqID)
+	} else {
+		logContext = requestContext(r.Context(), reqID, "", "")
+	}
+	zs := sugaredLogger(logContext) // Setup logger with context
 	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
 	w.Header().Set(ContentTypeKey, ApplicationJSON)
 	w.WriteHeader(http.StatusOK)
@@ -69,6 +76,9 @@ func (s APIService) loadKBDetails() {
 	zs.Debugf("Loading latest KB details...")
 	if len(kbDetails) == 0 {
 		kbDetails = fmt.Sprintf(`{"kb_version": { "monthly": "%v", "daily": "%v"}}`, "unknown", "unknown")
+	}
+	if len(engineVersion) == 0 {
+		engineVersion = "unknown"
 	}
 	// Load a random (hopefully non-existent) file match to extract the KB version details
 	result, err := s.scanWfp("file=7c53a2de7dfeaa20d057db98468d6670,2321,path/to/dummy/file.txt", "", "", "", zs)
@@ -106,6 +116,7 @@ func (s APIService) loadKBDetails() {
 		}
 		if len(ms) > 0 {
 			kbDetails = fmt.Sprintf(`{"kb_version": { "monthly": "%v", "daily": "%v"}}`, ms[0].Server.KbVersion.Monthly, ms[0].Server.KbVersion.Daily)
+			engineVersion = ms[0].Server.Version
 		}
 	}
 }

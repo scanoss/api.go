@@ -45,11 +45,13 @@ func TestSbomAttribution(t *testing.T) {
 		fieldName string
 		file      string
 		binary    string
+		telemetry bool
 		want      int
 	}{
 		{
 			name:      "Test Attribution - wrong name",
 			binary:    "../../test-support/scanoss.sh",
+			telemetry: true,
 			fieldName: "wrong-name",
 			file:      "./tests/software-bom-empty.json",
 			want:      http.StatusBadRequest,
@@ -57,6 +59,7 @@ func TestSbomAttribution(t *testing.T) {
 		{
 			name:      "Test Attribution - empty file",
 			binary:    "../../test-support/scanoss.sh",
+			telemetry: true,
 			fieldName: "file",
 			file:      "./tests/software-bom-empty.json",
 			want:      http.StatusBadRequest,
@@ -64,6 +67,7 @@ func TestSbomAttribution(t *testing.T) {
 		{
 			name:      "Test Attribution - invalid binary",
 			binary:    ".scan-binary-does-not-exist.sh",
+			telemetry: false,
 			fieldName: "file",
 			file:      "./tests/software-bom.json",
 			want:      http.StatusInternalServerError,
@@ -71,6 +75,7 @@ func TestSbomAttribution(t *testing.T) {
 		{
 			name:      "Test Attribution - success",
 			binary:    "../../test-support/scanoss.sh",
+			telemetry: false,
 			fieldName: "file",
 			file:      "./tests/software-bom.json",
 			want:      http.StatusOK,
@@ -78,6 +83,7 @@ func TestSbomAttribution(t *testing.T) {
 		{
 			name:      "Test Attribution - success 2",
 			binary:    "../../test-support/scanoss.sh",
+			telemetry: false,
 			fieldName: "file",
 			file:      "./tests/software-bom.json",
 			want:      http.StatusOK,
@@ -93,6 +99,7 @@ func TestSbomAttribution(t *testing.T) {
 				}
 			}
 			myConfig.Scanning.ScanBinary = test.binary
+			myConfig.Telemetry.Enabled = test.telemetry
 			filePath := test.file
 			fieldName := test.fieldName
 			postBody := new(bytes.Buffer)

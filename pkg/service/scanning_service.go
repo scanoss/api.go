@@ -26,10 +26,108 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/google/uuid"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"go.uber.org/zap"
 )
+
+// ScanDirect handles WFP scanning requests from a client.
+func (s APIService) ScanDirect(w http.ResponseWriter, r *http.Request) {
+	requestStartTime := time.Now() // Capture the scan start time
+	counters.incRequest("scan")
+	reqID := getReqID(r)
+	w.Header().Set(ResponseIDKey, reqID)
+	var logContext context.Context
+	var span oteltrace.Span
+	// Get the oltp span (if requested) and set logging context
+	if s.config.Telemetry.Enabled {
+		span, logContext = getSpan(r.Context(), reqID)
+	} else {
+		logContext = requestContext(r.Context(), reqID, "", "")
+	}
+	zs := sugaredLogger(logContext) // Setup logger with context
+	wfpCount := s.scanDirect(w, r, zs, logContext, span)
+	elapsedTime := time.Since(requestStartTime).Milliseconds() // Time taken to run the scan
+	if s.config.Telemetry.Enabled {
+		elapsedTimeSeconds := float64(elapsedTime) / 1000.0                 // Convert to seconds
+		oltpMetrics.scanHistogram.Record(logContext, elapsedTime)           // Record scan time
+		oltpMetrics.scanHistogramSec.Record(logContext, elapsedTimeSeconds) // Record scan time seconds
+		var fileScanTime int64
+		if wfpCount > 0 {
+			fileScanTime = elapsedTime / wfpCount
+			oltpMetrics.scanFileHistogram.Record(logContext, fileScanTime)                            // Record average file scan time
+			oltpMetrics.scanFileHistogramSec.Record(logContext, elapsedTimeSeconds/float64(wfpCount)) // Record average file scan time seconds
+		}
+		if s.config.App.Trace {
+			zs.Debugf("Scan stats: files: %v, scan_time: %v, file_time: %v", wfpCount, elapsedTime, fileScanTime)
+		}
+	}
+}
+
+// scanDirect handles WFP scanning requests from a client.
+func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.SugaredLogger, context context.Context, span oteltrace.Span) int64 {
+	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
+	contents, err := s.getFormFile(r, zs, "WFP")
+	if err != nil {
+		http.Error(w, "ERROR receiving WFP file contents", http.StatusBadRequest)
+		return 0
+	}
+	contentsTrimmed := bytes.TrimSpace(contents)
+	if len(contentsTrimmed) == 0 {
+		zs.Errorf("No WFP contents to scan (%v - %v)", len(contents), contents)
+		http.Error(w, "ERROR no WFP contents supplied", http.StatusBadRequest)
+		setSpanError(span, "No WFP contents supplied")
+		return 0
+	}
+	flags, scanType, sbom := s.getFlags(r, zs)
+	// Check if we have an SBOM (and type) supplied
+	var sbomFilename string
+	if len(sbom) > 0 && len(scanType) > 0 {
+		if scanType != "identify" && scanType != "blacklist" { // Make sure we have a valid SBOM scan type
+			zs.Errorf("Invalid SBOM type: %v", scanType)
+			http.Error(w, "ERROR invalid SBOM 'type' supplied", http.StatusBadRequest)
+			return 0
+		}
+		tempFile, err := s.writeSbomFile(sbom, zs)
+		if err != nil {
+			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
+			return 0
+		}
+		if s.config.Scanning.TmpFileDelete {
+			defer removeFile(tempFile, zs)
+		}
+		sbomFilename = tempFile.Name() // Save the SBOM filename
+		zs.Debugf("Stored SBOM (%v) in %v", scanType, sbomFilename)
+	}
+	wfps := strings.Split(string(contentsTrimmed), "file=")
+	wfpCount := int64(len(wfps) - 1) // First entry in the array is empty (hence the -1)
+	if wfpCount <= 0 {
+		zs.Errorf("No WFP (file=...) entries found to scan")
+		http.Error(w, "ERROR no WFP file contents (file=...) supplied", http.StatusBadRequest)
+		setSpanError(span, "No WFP (file=...) entries found.")
+		return 0
+	}
+	if !s.validateHPSM(contentsTrimmed, zs, w) {
+		setSpanError(span, "HPSM disabled.")
+		return 0
+	}
+	counters.incRequestAmount("files", wfpCount)
+	if s.config.Telemetry.Enabled {
+		oltpMetrics.scanFileCounter.Add(context, wfpCount)
+		span.SetAttributes(attribute.Int64("scan.file_count", wfpCount), attribute.String("scan.engine_version", engineVersion))
+	}
+	zs.Debugf("Need to scan %v files", wfpCount)
+	// Only one worker selected, so send the whole WFP in a single command
+	if s.config.Scanning.Workers <= 1 {
+		s.singleScan(string(contentsTrimmed), flags, scanType, sbomFilename, zs, w)
+	} else {
+		s.scanThreaded(wfps, int(wfpCount), flags, scanType, sbomFilename, zs, w, span)
+	}
+	return wfpCount
+}
 
 // getFlags extracts the form values from a request returns the flags, scan type, and sbom data if detected.
 func (s APIService) getFlags(r *http.Request, zs *zap.SugaredLogger) (string, string, string) {
@@ -89,15 +187,20 @@ func (s APIService) singleScan(wfp, flags, sbomType, sbomFile string, zs *zap.Su
 }
 
 // scanThreaded scan the given WFPs in multiple threads.
-func (s APIService) scanThreaded(wfps []string, wfpCount int, flags, sbomType, sbomFile string, zs *zap.SugaredLogger, w http.ResponseWriter) {
+func (s APIService) scanThreaded(wfps []string, wfpCount int, flags, sbomType, sbomFile string, zs *zap.SugaredLogger, w http.ResponseWriter, span oteltrace.Span) {
+	addSpanEvent(span, "Started Scanning.")
+	numWorkers := s.config.Scanning.Workers
+	groupedWfps := wfpCount / s.config.Scanning.WfpGrouping
+	if numWorkers > groupedWfps {
+		zs.Debugf("Requested workers (%v) greater than WFPs (%v). Reducing number.", numWorkers, groupedWfps)
+		numWorkers = groupedWfps
+	}
+	if numWorkers < 1 {
+		numWorkers = 1 // Make sure we have at least one worker
+	}
 	// Multiple workers, create input and output channels
 	requests := make(chan string)
-	results := make(chan string, wfpCount)
-	numWorkers := s.config.Scanning.Workers
-	if numWorkers > wfpCount {
-		zs.Debugf("Requested workers (%v) greater than WFPs (%v). Reducing number.", numWorkers, wfpCount)
-		numWorkers = wfpCount
-	}
+	results := make(chan string, groupedWfps+1)
 	zs.Debugf("Creating %v scanning workers...", numWorkers)
 	// Create workers
 	for i := 1; i <= numWorkers; i++ {
@@ -144,71 +247,19 @@ func (s APIService) scanThreaded(wfps []string, wfpCount int, flags, sbomType, s
 		}
 	}
 	close(results)
-	zs.Debugf("Responses: %v", len(responses))
-	if len(responses) == 0 {
+	addSpanEvent(span, "Finished Scanning.")
+	responsesLength := len(responses)
+	if requestCount != responsesLength {
+		zs.Warnf("Received fewer scan responses (%v) than requested (%v)", responsesLength, requestCount)
+		addSpanEvent(span, "Unmatched scan responses", oteltrace.WithAttributes(attribute.Int("requested", requestCount), attribute.Int("received", responsesLength)))
+	}
+	zs.Debugf("Responses: %v", responsesLength)
+	if responsesLength == 0 {
 		zs.Errorf("Multi-engine scan failed to produce results")
 		http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 	} else {
 		w.Header().Set(ContentTypeKey, ApplicationJSON)
 		printResponse(w, "{"+strings.Join(responses, ",")+"}\n", zs, false)
-	}
-}
-
-// ScanDirect handles WFP scanning requests from a client.
-func (s APIService) ScanDirect(w http.ResponseWriter, r *http.Request) {
-	counters.incRequest("scan")
-	reqID := getReqID(r)
-	w.Header().Set(ResponseIDKey, reqID)
-	zs := sugaredLogger(context.WithValue(r.Context(), RequestContextKey{}, reqID)) // Setup logger with context
-	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
-	contents, err := s.getFormFile(r, zs, "WFP")
-	if err != nil {
-		http.Error(w, "ERROR receiving WFP file contents", http.StatusBadRequest)
-		return
-	}
-	contentsTrimmed := bytes.TrimSpace(contents)
-	if len(contentsTrimmed) == 0 {
-		zs.Errorf("No WFP contents to scan (%v - %v)", len(contents), contents)
-		http.Error(w, "ERROR no WFP contents supplied", http.StatusBadRequest)
-		return
-	}
-	flags, scanType, sbom := s.getFlags(r, zs)
-	// Check if we have an SBOM (and type) supplied
-	var sbomFilename string
-	if len(sbom) > 0 && len(scanType) > 0 {
-		if scanType != "identify" && scanType != "blacklist" { // Make sure we have a valid SBOM scan type
-			zs.Errorf("Invalid SBOM type: %v", scanType)
-			http.Error(w, "ERROR invalid SBOM 'type' supplied", http.StatusBadRequest)
-			return
-		}
-		tempFile, err := s.writeSbomFile(sbom, zs)
-		if err != nil {
-			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
-			return
-		}
-		if s.config.Scanning.TmpFileDelete {
-			defer removeFile(tempFile, zs)
-		}
-		sbomFilename = tempFile.Name() // Save the SBOM filename
-		zs.Debugf("Stored SBOM (%v) in %v", scanType, sbomFilename)
-	}
-	wfps := strings.Split(string(contentsTrimmed), "file=")
-	wfpCount := len(wfps) - 1 // First entry in the array is empty (hence the -1)
-	if wfpCount <= 0 {
-		zs.Errorf("No WFP (file=...) entries found to scan")
-		http.Error(w, "ERROR no WFP file contents (file=...) supplied", http.StatusBadRequest)
-		return
-	}
-	if !s.validateHPSM(contentsTrimmed, zs, w) {
-		return
-	}
-	counters.incRequestAmount("files", int64(wfpCount))
-	zs.Debugf("Need to scan %v files", wfpCount)
-	// Only one worker selected, so send the whole WFP in a single command
-	if s.config.Scanning.Workers <= 1 {
-		s.singleScan(string(contentsTrimmed), flags, scanType, sbomFilename, zs, w)
-	} else {
-		s.scanThreaded(wfps, wfpCount, flags, scanType, sbomFilename, zs, w)
 	}
 }
 

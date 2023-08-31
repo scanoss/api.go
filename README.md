@@ -80,6 +80,19 @@ The order in which these are loaded is as follows:
 
 The most up-to-date configuration options can be found in [server_config.go](pkg/config/server_config.go).
 
+### Observability
+
+This service supports emitting metrics/traces using the Open Telemetry framework (OTEL).
+By default, this is disabled. It can be switched on from the configuration (`Telemetry -> Enabled`).
+
+The service emits the following to [OLTP gRPC collector](https://github.com/open-telemetry/opentelemetry-collector):
+- Traces
+  - HTTP requests
+  - Including traces/spans in logging
+- Metrics
+  - Request counts
+  - Request duration
+
 ## Development
 
 ### Run Local

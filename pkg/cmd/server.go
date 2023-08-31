@@ -127,5 +127,5 @@ func RunServer() error {
 	zlog.S.Infof("Running with config: %+v", *cfg)
 	// Setup custom URL if requested
 	setupCustomURL(cfg)
-	return rest.RunServer(cfg)
+	return rest.RunServer(cfg, version)
 }

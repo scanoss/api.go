@@ -39,6 +39,9 @@ int_test: clean_testcache  ## Run all integration tests in the tests folder
 lint_local: ## Run local instance of linting across the code base
 	golangci-lint run ./...
 
+lint_local_fix: ## Run local instance of linting across the code base with FIX option
+	golangci-lint run ./... --fix
+
 lint_docker: ## Run docker instance of linting across the code base
 	docker run --rm -v $(pwd):/app -v ~/.cache/golangci-lint/v1.50.1:/root/.cache -w /app golangci/golangci-lint:v1.50.1 golangci-lint run ./...
 

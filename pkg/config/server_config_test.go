@@ -111,3 +111,29 @@ func TestServerConfigLoadFile(t *testing.T) {
 		fmt.Printf("Data File details: %+v\n", res)
 	}
 }
+
+func TestServerConfigSampling(t *testing.T) {
+	appAddr := "localhost"
+	err := os.Setenv("APP_ADDR", appAddr)
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when creating new config instance", err)
+	}
+	cfg, err := NewServerConfig(nil)
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when creating new config instance", err)
+	}
+	tracing := GetTraceSampler(cfg)
+	if tracing == nil {
+		t.Fatalf("Failed to determine OLTP trace sampling mode 1.")
+	}
+	cfg.App.Mode = "prod"
+	tracing = GetTraceSampler(cfg)
+	if tracing == nil {
+		t.Fatalf("Failed to determine OLTP trace sampling mode 2.")
+	}
+	cfg.App.Mode = "unknown"
+	tracing = GetTraceSampler(cfg)
+	if tracing == nil {
+		t.Fatalf("Failed to determine OLTP trace sampling mode 3.")
+	}
+}
