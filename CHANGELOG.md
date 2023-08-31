@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Upcoming changes...
 
-## [1.3.0] - 2023-08-30
+## [1.3.0] - 2023-08-31
 ### Added
 - Added Open Telemetry (OTEL) support
   - Requires an OTEL Collector running gRPC

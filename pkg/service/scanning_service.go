@@ -45,17 +45,24 @@ func (s APIService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 	// Get the oltp span (if requested) and set logging context
 	if s.config.Telemetry.Enabled {
 		span, logContext = getSpan(r.Context(), reqID)
-		oltpMetrics.scanCounter.Add(logContext, 1)
 	} else {
 		logContext = requestContext(r.Context(), reqID, "", "")
 	}
 	zs := sugaredLogger(logContext) // Setup logger with context
 	wfpCount := s.scanDirect(w, r, zs, logContext, span)
-	elapsedTime := time.Since(requestStartTime).Microseconds() // Time taken to run the scan
+	elapsedTime := time.Since(requestStartTime).Milliseconds() // Time taken to run the scan
 	if s.config.Telemetry.Enabled {
-		oltpMetrics.scanHistogram.Record(logContext, elapsedTime) // Record scan time
+		elapsedTimeSeconds := float64(elapsedTime) / 1000.0                 // Convert to seconds
+		oltpMetrics.scanHistogram.Record(logContext, elapsedTime)           // Record scan time
+		oltpMetrics.scanHistogramSec.Record(logContext, elapsedTimeSeconds) // Record scan time seconds
+		var fileScanTime int64
 		if wfpCount > 0 {
-			oltpMetrics.scanFileHistogram.Record(logContext, elapsedTime/wfpCount) // Record average file scan time
+			fileScanTime = elapsedTime / wfpCount
+			oltpMetrics.scanFileHistogram.Record(logContext, fileScanTime)                            // Record average file scan time
+			oltpMetrics.scanFileHistogramSec.Record(logContext, elapsedTimeSeconds/float64(wfpCount)) // Record average file scan time seconds
+		}
+		if s.config.App.Trace {
+			zs.Debugf("Scan stats: files: %v, scan_time: %v, file_time: %v", wfpCount, elapsedTime, fileScanTime)
 		}
 	}
 }
@@ -110,7 +117,7 @@ func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.S
 	counters.incRequestAmount("files", wfpCount)
 	if s.config.Telemetry.Enabled {
 		oltpMetrics.scanFileCounter.Add(context, wfpCount)
-		span.SetAttributes(attribute.Int64("scan.file_count", wfpCount))
+		span.SetAttributes(attribute.Int64("scan.file_count", wfpCount), attribute.String("scan.engine_version", engineVersion))
 	}
 	zs.Debugf("Need to scan %v files", wfpCount)
 	// Only one worker selected, so send the whole WFP in a single command

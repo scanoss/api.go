@@ -87,13 +87,14 @@ var counters = counterStruct{
 
 // Structure for storing OTEL metrics.
 type metricsCounters struct {
-	scanCounter               metric.Int64Counter
 	scanFileCounter           metric.Int64Counter
 	fileContentsCounter       metric.Int64Counter
 	licenseDetailsCounter     metric.Int64Counter
 	attributionDetailsCounter metric.Int64Counter
-	scanHistogram             metric.Int64Histogram
-	scanFileHistogram         metric.Int64Histogram
+	scanHistogram             metric.Int64Histogram // milliseconds
+	scanFileHistogram         metric.Int64Histogram // milliseconds
+	scanHistogramSec          metric.Float64Histogram
+	scanFileHistogramSec      metric.Float64Histogram
 }
 
 var oltpMetrics = metricsCounters{}
@@ -101,13 +102,14 @@ var oltpMetrics = metricsCounters{}
 // setupMetrics configures all the metrics recorders for the platform.
 func setupMetrics() {
 	meter := otel.Meter("scanoss.com/go-api")
-	oltpMetrics.scanCounter, _ = meter.Int64Counter("scanoss-api.scan.req_count", metric.WithDescription("The number of scan requests received"))
 	oltpMetrics.scanFileCounter, _ = meter.Int64Counter("scanoss-api.scan.file_count", metric.WithDescription("The number of scan request files received"))
 	oltpMetrics.fileContentsCounter, _ = meter.Int64Counter("scanoss-api.contents.req_count", metric.WithDescription("The number of file contents requests received"))
 	oltpMetrics.licenseDetailsCounter, _ = meter.Int64Counter("scanoss-api.license.req_count", metric.WithDescription("The number of license details requests received"))
 	oltpMetrics.attributionDetailsCounter, _ = meter.Int64Counter("scanoss-api.attribution.req_count", metric.WithDescription("The number of license attribution requests received"))
-	oltpMetrics.scanHistogram, _ = meter.Int64Histogram("scanoss-api.scan.req_time", metric.WithDescription("The time taken to run a scan request"))
-	oltpMetrics.scanFileHistogram, _ = meter.Int64Histogram("scanoss-api.scan.file_time", metric.WithDescription("The average time taken to scan a single file in a request"))
+	oltpMetrics.scanHistogram, _ = meter.Int64Histogram("scanoss-api.scan.req_time", metric.WithDescription("The time taken to run a scan request (ms)"))
+	oltpMetrics.scanFileHistogram, _ = meter.Int64Histogram("scanoss-api.scan.file_time", metric.WithDescription("The average time taken to scan a single file in a request (ms)"))
+	oltpMetrics.scanHistogramSec, _ = meter.Float64Histogram("scanoss-api.scan.req_time_sec", metric.WithDescription("The time taken to run a scan request (seconds)"))
+	oltpMetrics.scanFileHistogramSec, _ = meter.Float64Histogram("scanoss-api.scan.file_time_sec", metric.WithDescription("Average time to scan a single file per request (seconds)"))
 }
 
 // incRequest increments the count for the given request type.
