@@ -3,7 +3,7 @@ module scanoss.com/go-api
 go 1.19
 
 require (
-	github.com/go-co-op/gocron v1.33.0
+	github.com/go-co-op/gocron v1.33.1
 	github.com/golobby/config/v3 v3.4.2
 	github.com/google/uuid v1.3.1
 	github.com/gorilla/mux v1.8.0
