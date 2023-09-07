@@ -320,7 +320,8 @@ func initProviders(config *myconfig.ServerConfig, version string) (func(), error
 		resource.WithHost(),
 		resource.WithAttributes(
 			// the service name & version used to display traces in backends
-			semconv.ServiceName("scanoss-api"),
+			semconv.ServiceName(config.App.Name),
+			semconv.ServiceNamespace("scanoss-api"),
 			semconv.ServiceVersion(strings.TrimSpace(version)),
 		),
 	)

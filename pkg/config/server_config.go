@@ -98,7 +98,7 @@ func NewServerConfig(feeders []config.Feeder) (*ServerConfig, error) {
 
 // setServerConfigDefaults attempts to set reasonable defaults for the server config.
 func setServerConfigDefaults(cfg *ServerConfig) {
-	cfg.App.Name = "SCANOSS API Server"
+	cfg.App.Name = "scanoss-api-server"
 	cfg.App.Port = defaultGrpcPort
 	cfg.App.Mode = "dev"
 	cfg.Logging.DynamicPort = "localhost:60085"
