@@ -8,7 +8,7 @@ require (
 	github.com/google/uuid v1.3.1
 	github.com/gorilla/mux v1.8.0
 	github.com/jpillora/ipfilter v1.2.9
-	github.com/scanoss/zap-logging-helper v0.2.0
+	github.com/scanoss/zap-logging-helper v0.2.1
 	github.com/stretchr/testify v1.8.4
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.43.0
 	go.opentelemetry.io/otel v1.17.0
