@@ -29,7 +29,8 @@
     "Workers": 2,
     "TmpFileDelete": true,
     "KeepFailedWfps": true,
-    "HPSMEnabled": true
+    "HPSMEnabled": true,
+    "FileContents": 1
   },
   "TLS": {
     "CertFile": "",
