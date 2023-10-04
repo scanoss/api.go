@@ -54,17 +54,18 @@ type ServerConfig struct {
 		OltpExporter string `env:"OTEL_EXPORTER_OLTP"` // OTEL OLTP exporter (default 0.0.0.0:4317)
 	}
 	Scanning struct {
-		WfpLoc         string `env:"SCAN_WFP_TMP"`         // specific location to write temporary WFP files to
-		ScanBinary     string `env:"SCAN_BINARY"`          // Binary to use for scanning
-		ScanDebug      bool   `env:"SCAN_DEBUG"`           // true/false
-		ScanFlags      int    `env:"SCAN_ENGINE_FLAGS"`    // Default flags to use when scanning
-		ScanTimeout    int    `env:"SCAN_ENGINE_TIMEOUT"`  // timeout for waiting for the scan engine to respond
-		WfpGrouping    int    `env:"SCAN_WFP_GROUPING"`    // number of WFP to group into a single scan engine command
-		Workers        int    `env:"SCAN_WORKERS"`         // Number of concurrent workers to use per scan request
-		TmpFileDelete  bool   `env:"SCAN_TMP_DELETE"`      // true/false
-		KeepFailedWfps bool   `env:"SCAN_KEEP_FAILED_WFP"` // true/false
-		ScanningURL    string `env:"SCANOSS_API_URL"`      // URL to present back in API responses - default https://osskb.org/api
-		HPSMEnabled    bool   `env:"SCAN_HPSM_ENABLED"`    // Enable HPSM (High Precision Snippet Matching) or not (default true)
+		WfpLoc         string `env:"SCAN_WFP_TMP"`          // specific location to write temporary WFP files to
+		ScanBinary     string `env:"SCAN_BINARY"`           // Binary to use for scanning
+		ScanDebug      bool   `env:"SCAN_DEBUG"`            // true/false
+		ScanFlags      int    `env:"SCAN_ENGINE_FLAGS"`     // Default flags to use when scanning
+		ScanTimeout    int    `env:"SCAN_ENGINE_TIMEOUT"`   // timeout for waiting for the scan engine to respond
+		WfpGrouping    int    `env:"SCAN_WFP_GROUPING"`     // number of WFP to group into a single scan engine command
+		Workers        int    `env:"SCAN_WORKERS"`          // Number of concurrent workers to use per scan request
+		TmpFileDelete  bool   `env:"SCAN_TMP_DELETE"`       // true/false
+		KeepFailedWfps bool   `env:"SCAN_KEEP_FAILED_WFP"`  // true/false
+		ScanningURL    string `env:"SCANOSS_API_URL"`       // URL to present back in API responses - default https://osskb.org/api
+		HPSMEnabled    bool   `env:"SCAN_HPSM_ENABLED"`     // Enable HPSM (High Precision Snippet Matching) or not (default true)
+		FileContents   int    `env:"SCANOSS_FILE_CONTENTS"` // Show matched file URL in scan results (default 1 - enabled, 0 - disabled)
 	}
 	TLS struct {
 		CertFile string `env:"SCAN_TLS_CERT"`   // TLS Certificate
@@ -111,6 +112,7 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Scanning.HPSMEnabled = true
 	cfg.Telemetry.Enabled = false
 	cfg.Telemetry.OltpExporter = "0.0.0.0:4317" // Default OTEL OLTP gRPC Exporter endpoint
+	cfg.Scanning.FileContents = 1               // Matched File URL response enabled (1) by default
 }
 
 // LoadFile loads the specified file and returns its contents in a string array.

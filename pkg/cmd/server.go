@@ -69,8 +69,8 @@ func getConfig() (*myconfig.ServerConfig, error) {
 	return myConfig, err
 }
 
-// setupCustomURL configures a custom URL for the scanoss engine.
-func setupCustomURL(cfg *myconfig.ServerConfig) {
+// setupEnvVars configures a custom env vars for the scanoss engine.
+func setupEnvVars(cfg *myconfig.ServerConfig) {
 	if len(cfg.Scanning.ScanningURL) > 0 {
 		err := os.Setenv("SCANOSS_API_URL", cfg.Scanning.ScanningURL)
 		if err != nil {
@@ -79,6 +79,13 @@ func setupCustomURL(cfg *myconfig.ServerConfig) {
 	}
 	if customURL := os.Getenv("SCANOSS_API_URL"); len(customURL) > 0 {
 		zlog.S.Infof("Using custom API URL: %s", customURL)
+	}
+	err := os.Setenv("SCANOSS_FILE_CONTENTS", fmt.Sprintf("%v", cfg.Scanning.FileContents))
+	if err != nil {
+		zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS SCANOSS_API_URL value to %v: %v", cfg.Scanning.FileContents, err)
+	}
+	if customContents := os.Getenv("SCANOSS_FILE_CONTENTS"); len(customContents) > 0 && customContents == "0" {
+		zlog.S.Infof("Skipping file_url datafield.")
 	}
 }
 
@@ -125,7 +132,7 @@ func RunServer() error {
 	}
 	zlog.S.Infof("Running with %v worker(s) per scan request", cfg.Scanning.Workers)
 	zlog.S.Infof("Running with config: %+v", *cfg)
-	// Setup custom URL if requested
-	setupCustomURL(cfg)
+	// Setup custom env variables if requested
+	setupEnvVars(cfg)
 	return rest.RunServer(cfg, version)
 }
