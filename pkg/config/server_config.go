@@ -65,7 +65,7 @@ type ServerConfig struct {
 		KeepFailedWfps bool   `env:"SCAN_KEEP_FAILED_WFP"`  // true/false
 		ScanningURL    string `env:"SCANOSS_API_URL"`       // URL to present back in API responses - default https://osskb.org/api
 		HPSMEnabled    bool   `env:"SCAN_HPSM_ENABLED"`     // Enable HPSM (High Precision Snippet Matching) or not (default true)
-		FileContents   int    `env:"SCANOSS_FILE_CONTENTS"` // Show matched file URL in scan results (default 1 - enabled, 0 - disabled)
+		FileContents   bool   `env:"SCANOSS_FILE_CONTENTS"` // Show matched file URL in scan results (default true)
 	}
 	TLS struct {
 		CertFile string `env:"SCAN_TLS_CERT"`   // TLS Certificate
@@ -112,7 +112,7 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Scanning.HPSMEnabled = true
 	cfg.Telemetry.Enabled = false
 	cfg.Telemetry.OltpExporter = "0.0.0.0:4317" // Default OTEL OLTP gRPC Exporter endpoint
-	cfg.Scanning.FileContents = 1               // Matched File URL response enabled (1) by default
+	cfg.Scanning.FileContents = true            // Matched File URL response enabled (true) by default
 }
 
 // LoadFile loads the specified file and returns its contents in a string array.

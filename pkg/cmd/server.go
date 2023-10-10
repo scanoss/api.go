@@ -84,7 +84,7 @@ func setupEnvVars(cfg *myconfig.ServerConfig) {
 	if err != nil {
 		zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS SCANOSS_API_URL value to %v: %v", cfg.Scanning.FileContents, err)
 	}
-	if customContents := os.Getenv("SCANOSS_FILE_CONTENTS"); len(customContents) > 0 && customContents == "0" {
+	if customContents := os.Getenv("SCANOSS_FILE_CONTENTS"); len(customContents) > 0 && customContents == "false" {
 		zlog.S.Infof("Skipping file_url datafield.")
 	}
 }
