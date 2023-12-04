@@ -3,10 +3,12 @@
     "Name": "Scanning GO API",
     "Port": "5443",
     "Debug": true,
-    "Mode":  "dev"
+    "Mode":  "dev",
+    "Trace": false
   },
   "Scanning": {
     "ScanBinary": "./test-support/scanoss.sh",
-    "ScanningURL": "http://localhost:5443/api"
+    "ScanningURL": "http://localhost:5443/api",
+    "TmpFileDelete": true
   }
 }

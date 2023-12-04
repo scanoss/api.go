@@ -4,6 +4,10 @@ This file contains a set of curl commands to exercise the SCANOSS GO API service
 
 curl -X POST -F 'file=@fingers.wfp' -H "flags:12540" localhost:5443/api/scan/direct > sc-new-res.json
 
+# Scan file with context
+
+curl -X POST -F 'file=@fingers.wfp' -H 'type=identify' -H 'assets=@sbom.json'  localhost:5443/api/scan/direct > sc-context-res.json
+
 # Get file contents
 
 curl -X GET  http://localhost:5443/api/file_contents/37f7cd1e657aa3c30ece35995b4c59e5 > contents.txt
