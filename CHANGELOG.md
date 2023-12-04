@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Upcoming changes...
 
+## [1.3.4] - 2023-12-04
+### Changed
+- Upgraded to Go 1.20
+
 ## [1.3.3] - 2023-10-10
 ### Changed
 - Changed option to enable/disable file_url reporting (`FileContents`) from integer to boolean
@@ -93,3 +97,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.3.1]: https://github.com/scanoss/api.go/compare/v1.3.0...v1.3.1
 [1.3.2]: https://github.com/scanoss/api.go/compare/v1.3.1...v1.3.2
 [1.3.3]: https://github.com/scanoss/api.go/compare/v1.3.2...v1.3.3
+[1.3.4]: https://github.com/scanoss/api.go/compare/v1.3.3...v1.3.4
