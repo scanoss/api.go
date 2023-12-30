@@ -88,6 +88,7 @@ var counters = counterStruct{
 // Structure for storing OTEL metrics.
 type metricsCounters struct {
 	scanFileCounter           metric.Int64Counter
+	scanSizeCounter           metric.Int64Counter
 	fileContentsCounter       metric.Int64Counter
 	licenseDetailsCounter     metric.Int64Counter
 	attributionDetailsCounter metric.Int64Counter
@@ -103,6 +104,7 @@ var oltpMetrics = metricsCounters{}
 func setupMetrics() {
 	meter := otel.Meter("scanoss.com/go-api")
 	oltpMetrics.scanFileCounter, _ = meter.Int64Counter("scanoss-api.scan.file_count", metric.WithDescription("The number of scan request files received"))
+	oltpMetrics.scanSizeCounter, _ = meter.Int64Counter("scanoss-api.scan.file_size", metric.WithDescription("The size of scan request files received"))
 	oltpMetrics.fileContentsCounter, _ = meter.Int64Counter("scanoss-api.contents.req_count", metric.WithDescription("The number of file contents requests received"))
 	oltpMetrics.licenseDetailsCounter, _ = meter.Int64Counter("scanoss-api.license.req_count", metric.WithDescription("The number of license details requests received"))
 	oltpMetrics.attributionDetailsCounter, _ = meter.Int64Counter("scanoss-api.attribution.req_count", metric.WithDescription("The number of license attribution requests received"))
