@@ -22,7 +22,7 @@ clean:  ## Clean all dev data
 
 clean_testcache:  ## Expire all Go test caches
 	@echo "Cleaning test caches..."
-	go clean -testcache ./...
+	go clean -testcache
 
 version:  ## Produce dependency version text file
 	@echo "Writing version file..."
