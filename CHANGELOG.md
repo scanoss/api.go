@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Upcoming changes...
 
+## [1.3.5] - 2023-12-30
+### Added
+- Added scan file size metric
+- Updated dependency versions
+
 ## [1.3.4] - 2023-12-04
 ### Changed
 - Upgraded to Go 1.20
@@ -98,3 +103,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.3.2]: https://github.com/scanoss/api.go/compare/v1.3.1...v1.3.2
 [1.3.3]: https://github.com/scanoss/api.go/compare/v1.3.2...v1.3.3
 [1.3.4]: https://github.com/scanoss/api.go/compare/v1.3.3...v1.3.4
+[1.3.5]: https://github.com/scanoss/api.go/compare/v1.3.4...v1.3.5

@@ -23,6 +23,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,6 +35,8 @@ import (
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"go.uber.org/zap"
 )
+
+var fileRegex = regexp.MustCompile(`^\w+,(\d+),.+`) // regex to parse file size from request
 
 // ScanDirect handles WFP scanning requests from a client.
 func (s APIService) ScanDirect(w http.ResponseWriter, r *http.Request) {
@@ -114,12 +118,7 @@ func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.S
 		setSpanError(span, "HPSM disabled.")
 		return 0
 	}
-	counters.incRequestAmount("files", wfpCount)
-	if s.config.Telemetry.Enabled {
-		oltpMetrics.scanFileCounter.Add(context, wfpCount)
-		span.SetAttributes(attribute.Int64("scan.file_count", wfpCount), attribute.String("scan.engine_version", engineVersion))
-	}
-	zs.Debugf("Need to scan %v files", wfpCount)
+	s.countScanSize(wfps, wfpCount, zs, context, span)
 	// Only one worker selected, so send the whole WFP in a single command
 	if s.config.Scanning.Workers <= 1 {
 		s.singleScan(string(contentsTrimmed), flags, scanType, sbomFilename, zs, w)
@@ -127,6 +126,32 @@ func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.S
 		s.scanThreaded(wfps, int(wfpCount), flags, scanType, sbomFilename, zs, w, span)
 	}
 	return wfpCount
+}
+
+// countScanSize parses the WFPs to calculate the size of the scan request and record it for metrics.
+func (s APIService) countScanSize(wfps []string, wfpCount int64, zs *zap.SugaredLogger, context context.Context, span oteltrace.Span) {
+	var sizeCount int64 = 0
+	for _, wfp := range wfps {
+		matches := fileRegex.FindStringSubmatch(wfp)
+		if len(matches) > 0 {
+			i, err := strconv.ParseInt(matches[1], 10, 64)
+			if err == nil {
+				sizeCount += i
+			} else {
+				zs.Warnf("Problem parsing file size from %v - %v: %v", matches[1], err, wfp)
+			}
+		}
+	}
+	counters.incRequestAmount("files", wfpCount)
+	if s.config.Telemetry.Enabled {
+		oltpMetrics.scanFileCounter.Add(context, wfpCount)
+		span.SetAttributes(attribute.Int64("scan.file_count", wfpCount), attribute.String("scan.engine_version", engineVersion))
+		if sizeCount > 0 {
+			oltpMetrics.scanSizeCounter.Add(context, sizeCount)
+			span.SetAttributes(attribute.Int64("scan.file_size", sizeCount))
+		}
+	}
+	zs.Infof("Need to scan %v files of size %v", wfpCount, sizeCount)
 }
 
 // getFlags extracts the form values from a request returns the flags, scan type, and sbom data if detected.
