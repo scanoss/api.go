@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/go-co-op/gocron v1.37.0
 	github.com/golobby/config/v3 v3.4.2
-	github.com/google/uuid v1.5.0
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/jpillora/ipfilter v1.2.9
 	github.com/scanoss/zap-logging-helper v0.3.0
