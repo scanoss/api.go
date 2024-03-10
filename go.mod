@@ -10,7 +10,7 @@ require (
 	github.com/jpillora/ipfilter v1.2.9
 	github.com/scanoss/zap-logging-helper v0.3.0
 	github.com/stretchr/testify v1.8.4
-	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.46.1
+	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.49.0
 	go.opentelemetry.io/otel v1.24.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.24.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.21.0
