@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Upcoming changes...
 
+## [1.4.0] - 2024-03-15
+### Added
+- Added support for request routing through root
+  - So it is now possible to route through `/api/` and `/`
+  - i.e. `https://localhost/api/scan/direct` and `https://localhost/scan/api`
+
 ## [1.3.5] - 2023-12-30
 ### Added
 - Added scan file size metric
@@ -104,3 +110,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.3.3]: https://github.com/scanoss/api.go/compare/v1.3.2...v1.3.3
 [1.3.4]: https://github.com/scanoss/api.go/compare/v1.3.3...v1.3.4
 [1.3.5]: https://github.com/scanoss/api.go/compare/v1.3.4...v1.3.5
+[1.4.0]: https://github.com/scanoss/api.go/compare/v1.3.5...v1.4.0

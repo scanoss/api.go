@@ -117,7 +117,7 @@ func TestSbomAttribution(t *testing.T) {
 			}
 			_ = mw.Close() // close the writer before making the request
 
-			req := httptest.NewRequest(http.MethodPost, "http://localhost/api/sbom/attribution", postBody)
+			req := httptest.NewRequest(http.MethodPost, "http://localhost/sbom/attribution", postBody)
 			w := httptest.NewRecorder()
 			req.Header.Add("Content-Type", mw.FormDataContentType())
 			apiService.SbomAttribution(w, req)

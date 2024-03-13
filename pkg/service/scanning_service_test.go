@@ -226,7 +226,7 @@ func TestScanDirectSingle(t *testing.T) {
 			}
 			_ = mw.Close() // close the writer before making the request
 
-			req := httptest.NewRequest(http.MethodPost, "http://localhost/api/api/scan/direct", postBody)
+			req := httptest.NewRequest(http.MethodPost, "http://localhost/scan/direct", postBody)
 			w := httptest.NewRecorder()
 			req.Header.Add("Content-Type", mw.FormDataContentType())
 			apiService.ScanDirect(w, req)
@@ -340,7 +340,7 @@ func TestScanDirectThreaded(t *testing.T) {
 			}
 			_ = mw.Close() // close the writer before making the request
 
-			req := httptest.NewRequest(http.MethodPost, "http://localhost/api/api/scan/direct", postBody)
+			req := httptest.NewRequest(http.MethodPost, "http://localhost/scan/direct", postBody)
 			w := httptest.NewRecorder()
 			req.Header.Add("Content-Type", mw.FormDataContentType())
 			apiService.ScanDirect(w, req)
@@ -433,7 +433,7 @@ func TestScanDirectSingleHPSM(t *testing.T) {
 			}
 			_ = mw.Close() // close the writer before making the request
 
-			req := httptest.NewRequest(http.MethodPost, "http://localhost/api/api/scan/direct", postBody)
+			req := httptest.NewRequest(http.MethodPost, "http://localhost/scan/direct", postBody)
 			w := httptest.NewRecorder()
 			req.Header.Add("Content-Type", mw.FormDataContentType())
 			apiService.ScanDirect(w, req)

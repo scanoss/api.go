@@ -91,7 +91,7 @@ func TestFileContents(t *testing.T) {
 			}
 			myConfig.Scanning.ScanBinary = test.binary
 			myConfig.Telemetry.Enabled = test.telemetry
-			req := newReq("GET", "http://localhost/api/file_contents/{md5}", "", test.input)
+			req := newReq("GET", "http://localhost/file_contents/{md5}", "", test.input)
 			w := httptest.NewRecorder()
 			apiService.FileContents(w, req)
 			resp := w.Result()
