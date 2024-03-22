@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Upcoming changes...
 
+## [1.4.1] - 2024-03-22
+### Added
+- Added Telemetry option to fine tune which host level metrics are produced by default
+  - `ExtraMetrics` can be set to true/false to
+
 ## [1.4.0] - 2024-03-15
 ### Added
 - Added support for request routing through root
@@ -111,3 +116,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.3.4]: https://github.com/scanoss/api.go/compare/v1.3.3...v1.3.4
 [1.3.5]: https://github.com/scanoss/api.go/compare/v1.3.4...v1.3.5
 [1.4.0]: https://github.com/scanoss/api.go/compare/v1.3.5...v1.4.0
+[1.4.1]: https://github.com/scanoss/api.go/compare/v1.4.0...v1.4.1
