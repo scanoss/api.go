@@ -34,7 +34,7 @@ func TestE2EKBDetailsSuite(t *testing.T) {
 
 func (s *E2EKBDetailsSuite) TestHappyKBDetails() {
 	c := http.Client{}
-	resp, err := c.Get(fmt.Sprintf("%v/api/kb/details", hostPort))
+	resp, err := c.Get(fmt.Sprintf("%v/kb/details", hostPort))
 	if err != nil {
 		s.Failf("an error was not expected when sending request.", "error: %v", err)
 	}

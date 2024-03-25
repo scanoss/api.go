@@ -59,7 +59,7 @@ func (s *E2EHealthSuite) TestHappyWelcomeMsg() {
 
 func (s *E2EHealthSuite) TestHappyHealthcheck() {
 	c := http.Client{}
-	resp, err := c.Get(fmt.Sprintf("%v/api/health-check", hostPort))
+	resp, err := c.Get(fmt.Sprintf("%v/health-check", hostPort))
 	if err != nil {
 		s.Failf("an error was not expected when sending request.", "error: %v", err)
 	}
@@ -75,7 +75,7 @@ func (s *E2EHealthSuite) TestHappyHealthcheck() {
 	fmt.Println("Body: ", bodyStr)
 
 	// Test the HEAD call also
-	resp2, err := c.Head(fmt.Sprintf("%v/api/health-check", hostPort))
+	resp2, err := c.Head(fmt.Sprintf("%v/health-check", hostPort))
 	if err != nil {
 		s.Failf("an error was not expected when sending request.", "error: %v", err)
 	}
@@ -124,7 +124,7 @@ func (s *E2EHealthSuite) TestMetrics() {
 	}
 	for _, test := range tests {
 		s.Run(test.name, func() {
-			resp, err := c.Get(fmt.Sprintf("%v/api/metrics/%v", hostPort, test.input))
+			resp, err := c.Get(fmt.Sprintf("%v/metrics/%v", hostPort, test.input))
 			if err != nil {
 				s.Failf("an error was not expected when sending request.", "error: %v", err)
 			}

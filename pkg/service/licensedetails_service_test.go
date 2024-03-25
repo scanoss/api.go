@@ -92,7 +92,7 @@ func TestLicenseDetails(t *testing.T) {
 			}
 			myConfig.Scanning.ScanBinary = test.binary
 			myConfig.Telemetry.Enabled = test.telemetry
-			req := newReq("GET", "http://localhost/api/license/obligations/{license}", "", test.input)
+			req := newReq("GET", "http://localhost/license/obligations/{license}", "", test.input)
 			w := httptest.NewRecorder()
 			apiService.LicenseDetails(w, req)
 			resp := w.Result()

@@ -51,6 +51,7 @@ type ServerConfig struct {
 	}
 	Telemetry struct {
 		Enabled      bool   `env:"OTEL_ENABLED"`       // true/false
+		ExtraMetrics bool   `env:"OTEL_EXTRA"`         // true/false
 		OltpExporter string `env:"OTEL_EXPORTER_OLTP"` // OTEL OLTP exporter (default 0.0.0.0:4317)
 	}
 	Scanning struct {
@@ -111,6 +112,7 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Scanning.WfpGrouping = 3   // Default number of WFPs to group into a single scan request (when Workers > 1)
 	cfg.Scanning.HPSMEnabled = true
 	cfg.Telemetry.Enabled = false
+	cfg.Telemetry.ExtraMetrics = true           // Default to sending all the extra service metrics
 	cfg.Telemetry.OltpExporter = "0.0.0.0:4317" // Default OTEL OLTP gRPC Exporter endpoint
 	cfg.Scanning.FileContents = true            // Matched File URL response enabled (true) by default
 }

@@ -63,7 +63,7 @@ func RunServer(config *myconfig.ServerConfig, version string) error {
 		return err
 	}
 	if config.Telemetry.Enabled {
-		oltpShutdown, err := initProviders(config, version)
+		oltpShutdown, err := initProviders(config, version, config.Telemetry.ExtraMetrics)
 		if err != nil {
 			return err
 		}
@@ -82,15 +82,25 @@ func RunServer(config *myconfig.ServerConfig, version string) error {
 	router.HandleFunc("/api/", service.WelcomeMsg).Methods(http.MethodGet)
 	router.HandleFunc("/api/", service.HeadResponse).Methods(http.MethodHead)
 	router.HandleFunc("/api/health", service.HealthCheck).Methods(http.MethodGet)
+	router.HandleFunc("/health", service.HealthCheck).Methods(http.MethodGet)
 	router.HandleFunc("/api/health", service.HeadResponse).Methods(http.MethodHead)
+	router.HandleFunc("/health", service.HeadResponse).Methods(http.MethodHead)
 	router.HandleFunc("/api/health-check", service.HealthCheck).Methods(http.MethodGet)
+	router.HandleFunc("/health-check", service.HealthCheck).Methods(http.MethodGet)
 	router.HandleFunc("/api/health-check", service.HeadResponse).Methods(http.MethodHead)
+	router.HandleFunc("/health-check", service.HeadResponse).Methods(http.MethodHead)
 	router.HandleFunc("/api/metrics/{type}", service.MetricsHandler).Methods(http.MethodGet)
+	router.HandleFunc("/metrics/{type}", service.MetricsHandler).Methods(http.MethodGet)
 	router.HandleFunc("/api/file_contents/{md5}", apiService.FileContents).Methods(http.MethodGet)
+	router.HandleFunc("/file_contents/{md5}", apiService.FileContents).Methods(http.MethodGet)
 	router.HandleFunc("/api/kb/details", apiService.KBDetails).Methods(http.MethodGet)
+	router.HandleFunc("/kb/details", apiService.KBDetails).Methods(http.MethodGet)
 	router.HandleFunc("/api/license/obligations/{license}", apiService.LicenseDetails).Methods(http.MethodGet)
+	router.HandleFunc("/license/obligations/{license}", apiService.LicenseDetails).Methods(http.MethodGet)
 	router.HandleFunc("/api/scan/direct", apiService.ScanDirect).Methods(http.MethodPost)
+	router.HandleFunc("/scan/direct", apiService.ScanDirect).Methods(http.MethodPost)
 	router.HandleFunc("/api/sbom/attribution", apiService.SbomAttribution).Methods(http.MethodPost)
+	router.HandleFunc("/sbom/attribution", apiService.SbomAttribution).Methods(http.MethodPost)
 	// Setup Open Telemetry (OTEL)
 	if config.Telemetry.Enabled {
 		router.Use(otelmux.Middleware("scanoss-api"))
@@ -309,22 +319,26 @@ func loadFiltering(config *myconfig.ServerConfig) ([]string, []string, error) {
 }
 
 // initProviders sets up the OLTP Meter and Trace providers and the OLTP gRPC exporter.
-func initProviders(config *myconfig.ServerConfig, version string) (func(), error) {
+func initProviders(config *myconfig.ServerConfig, version string, extraAttributes bool) (func(), error) {
 	zlog.L.Info("Setting up Open Telemetry providers.")
 	// Setup resource for the providers
 	ctx := context.Background()
-	res, err := resource.New(ctx,
-		resource.WithFromEnv(),
-		resource.WithProcess(),
-		resource.WithTelemetrySDK(),
-		resource.WithHost(),
-		resource.WithAttributes(
-			// the service name & version used to display traces in backends
-			semconv.ServiceName(config.App.Name),
-			semconv.ServiceNamespace("scanoss-api"),
-			semconv.ServiceVersion(strings.TrimSpace(version)),
-		),
+	var opts []resource.Option
+	// Extra service level attributes to report
+	if extraAttributes {
+		opts = append(opts, resource.WithFromEnv())
+		opts = append(opts, resource.WithProcess())
+		opts = append(opts, resource.WithTelemetrySDK())
+	}
+	opts = append(opts, resource.WithHost())
+	// the service name & version used to display traces in backends
+	opts = append(opts, resource.WithAttributes(
+		semconv.ServiceName(config.App.Name),
+		semconv.ServiceNamespace("scanoss-api"),
+		semconv.ServiceVersion(strings.TrimSpace(version)),
+	),
 	)
+	res, err := resource.New(ctx, opts...)
 	if err != nil {
 		zlog.S.Errorf("Failed to create oltp resource: %v", err)
 		return nil, err

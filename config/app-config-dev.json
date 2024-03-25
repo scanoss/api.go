@@ -8,7 +8,7 @@
   },
   "Scanning": {
     "ScanBinary": "./test-support/scanoss.sh",
-    "ScanningURL": "http://localhost:5443/api",
+    "ScanningURL": "http://localhost:5443",
     "TmpFileDelete": true
   }
 }

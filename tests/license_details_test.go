@@ -34,7 +34,7 @@ func TestE2ELicenseSuite(t *testing.T) {
 
 func (s *E2ELicenseSuite) TestHappyLicenseObligations() {
 	c := http.Client{}
-	resp, err := c.Get(fmt.Sprintf("%v/api/license/obligations/MIT", hostPort))
+	resp, err := c.Get(fmt.Sprintf("%v/license/obligations/MIT", hostPort))
 	if err != nil {
 		s.Failf("an error was not expected when sending request.", "error: %v", err)
 	}

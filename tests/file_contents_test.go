@@ -34,7 +34,7 @@ func TestE2EContentsSuite(t *testing.T) {
 
 func (s *E2EContentsSuite) TestHappyFileContents() {
 	c := http.Client{}
-	resp, err := c.Get(fmt.Sprintf("%v/api/file_contents/37f7cd1e657aa3c30ece35995b4c59e5", hostPort))
+	resp, err := c.Get(fmt.Sprintf("%v/file_contents/37f7cd1e657aa3c30ece35995b4c59e5", hostPort))
 	if err != nil {
 		s.Failf("an error was not expected when sending request.", "error: %v", err)
 	}

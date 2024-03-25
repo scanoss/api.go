@@ -79,7 +79,7 @@ func TestHealthCheck(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
 	}
 	defer zlog.SyncZap()
-	req := httptest.NewRequest(http.MethodGet, "http://localhost/api/health", nil)
+	req := httptest.NewRequest(http.MethodGet, "http://localhost/health", nil)
 	w := httptest.NewRecorder()
 	HealthCheck(w, req)
 	resp := w.Result()
@@ -147,7 +147,7 @@ func TestMetricsHandler(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			req := newReq("GET", "http://localhost/api/metrics/{type}", "", test.input)
+			req := newReq("GET", "http://localhost/metrics/{type}", "", test.input)
 			w := httptest.NewRecorder()
 			MetricsHandler(w, req)
 			resp := w.Result()
@@ -200,7 +200,7 @@ func TestHeadResponse(t *testing.T) {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
 	}
 	defer zlog.SyncZap()
-	req := httptest.NewRequest(http.MethodHead, "http://localhost/api/health", nil)
+	req := httptest.NewRequest(http.MethodHead, "http://localhost/health", nil)
 	w := httptest.NewRecorder()
 	HeadResponse(w, req)
 	resp := w.Result()
