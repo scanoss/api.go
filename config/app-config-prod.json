@@ -31,7 +31,7 @@
     "TmpFileDelete": true,
     "KeepFailedWfps": true,
     "HPSMEnabled": true,
-    "FileContents": 1
+    "FileContents": true
   },
   "TLS": {
     "CertFile": "",
