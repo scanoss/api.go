@@ -152,7 +152,13 @@ func RunServer(config *myconfig.ServerConfig, version string) error {
 func loadTLSConfig(config *myconfig.ServerConfig, srv *http.Server) {
 	pemBlocks := loadCertFile(config)
 	pkey := loadPrivateKey(config)
-	c, err := tls.X509KeyPair(pem.EncodeToMemory(pemBlocks[0]), pkey)
+
+	var combinedPem []byte
+	for _, pemBlock := range pemBlocks {
+		combinedPem = append(combinedPem, pem.EncodeToMemory(pemBlock)...)
+	}
+
+	c, err := tls.X509KeyPair(combinedPem, pkey)
 	if err != nil {
 		zlog.S.Panicf("Failed to load TLS key pair (%v - %v): %v", config.TLS.KeyFile, config.TLS.CertFile, err)
 	}

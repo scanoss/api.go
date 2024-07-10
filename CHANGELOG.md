@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Upcoming changes...
 
+## [1.4.2] - 2024-07-10
+### Fixed
+- Fixed issue loading TLS chained certificates.
+
 ## [1.4.1] - 2024-03-22
 ### Added
 - Added Telemetry option to fine tune which host level metrics are produced by default
