@@ -10,14 +10,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Get tags to allow build script to get build version
 
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.20.x
+          go-version: 1.22.x
 
       - name: Build
         run: |

@@ -170,11 +170,6 @@ func loadTLSConfig(config *myconfig.ServerConfig, srv *http.Server) {
 		},
 		Certificates: []tls.Certificate{c},
 	}
-	// tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-	// tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-	// tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-	// tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
-	// tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
 	srv.TLSConfig = cfg
 	srv.TLSNextProto = make(map[string]func(*http.Server, *tls.Conn, http.Handler))
 }

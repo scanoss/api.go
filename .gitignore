@@ -36,3 +36,6 @@ local-build-commands.txt
 
 # Ignore logfiles
 *.log
+
+# Ignore hidden scanoss
+.scanoss

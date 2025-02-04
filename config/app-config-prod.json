@@ -31,7 +31,8 @@
     "TmpFileDelete": true,
     "KeepFailedWfps": true,
     "HPSMEnabled": true,
-    "FileContents": true
+    "FileContents": true,
+    "LoadKbDetails": true
   },
   "TLS": {
     "CertFile": "",

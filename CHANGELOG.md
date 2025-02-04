@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Upcoming changes...
 
+## [1.4.3] - 2025-02-04
+### Added
+- Added option to disable KB version collection
+  - `LoadKbDetails` can be set to true/false to
+- Updated packaging/deployment utilities
+
 ## [1.4.2] - 2024-07-10
 ### Fixed
 - Fixed issue loading TLS chained certificates.
@@ -121,3 +127,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.3.5]: https://github.com/scanoss/api.go/compare/v1.3.4...v1.3.5
 [1.4.0]: https://github.com/scanoss/api.go/compare/v1.3.5...v1.4.0
 [1.4.1]: https://github.com/scanoss/api.go/compare/v1.4.0...v1.4.1
+[1.4.2]: https://github.com/scanoss/api.go/compare/v1.4.1...v1.4.2
+[1.4.3]: https://github.com/scanoss/api.go/compare/v1.4.2...v1.4.3

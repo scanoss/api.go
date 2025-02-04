@@ -36,15 +36,15 @@ func TestKBDetails(t *testing.T) {
 	}
 	defer zlog.SyncZap()
 
+	// Test with no scheduler
 	myConfig := setupConfig(t)
 	myConfig.App.Trace = true
+	myConfig.Scanning.LoadKbDetails = false
 	apiService := NewAPIService(myConfig)
 	apiService.SetupKBDetailsCron()
-	time.Sleep(time.Duration(5) * time.Second) // Sleep a little to allow the KB details to be loaded
 	req := httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
 	w := httptest.NewRecorder()
 	apiService.KBDetails(w, req)
-
 	resp := w.Result()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -52,7 +52,28 @@ func TestKBDetails(t *testing.T) {
 	}
 	bodyStr := string(body)
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
-	expected := `{"kb_version": { "monthly": "23.07", "daily": "23.08.09"}}`
+	expected := `{"kb_version": { "monthly": "unknown", "daily": "unknown"}}`
+	assert.Equal(t, expected, strings.TrimSpace(bodyStr))
+	fmt.Println("Status: ", resp.StatusCode)
+	fmt.Println("Type: ", resp.Header.Get("Content-Type"))
+	fmt.Println("Body: ", bodyStr)
+
+	// Test is with scheduler
+	myConfig.Scanning.LoadKbDetails = true
+	myConfig.Telemetry.Enabled = true
+	apiService.SetupKBDetailsCron()
+	time.Sleep(time.Duration(5) * time.Second) // Sleep a little to allow the KB details to be loaded
+	req = httptest.NewRequest(http.MethodGet, "http://localhost/", nil)
+	w = httptest.NewRecorder()
+	apiService.KBDetails(w, req)
+	resp = w.Result()
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("an error was not expected when reading from request: %v", err)
+	}
+	bodyStr = string(body)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	expected = `{"kb_version": { "monthly": "23.07", "daily": "23.08.09"}}`
 	assert.Equal(t, expected, strings.TrimSpace(bodyStr))
 	fmt.Println("Status: ", resp.StatusCode)
 	fmt.Println("Type: ", resp.Header.Get("Content-Type"))

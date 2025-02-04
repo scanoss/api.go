@@ -47,6 +47,10 @@ while [ -f "$tar_name" ] ; do
   ((build++))
   tar_name="scanoss-go_${platform}_${version}-${build}.tgz"
 done
+if ! cp config/app-config-prod.json scripts ; then
+  echo "ERROR copying sample prod config to scripts folder"
+  exit 1
+fi
 echo "Packing scripts..."
 if ! tar --format=ustar -cvzf "$tar_name" scripts ; then
   echo "ERROR packaging the scripts folder"
