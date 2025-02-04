@@ -44,13 +44,17 @@ var engineVersion string // Version of the engine in use
 
 // SetupKBDetailsCron sets up a background cron to update the KB version once an hour.
 func (s APIService) SetupKBDetailsCron() {
-	scheduler := gocron.NewScheduler(time.UTC)
-	_, err := scheduler.Every(30).Minutes().Do(s.loadKBDetails)
-	if err != nil {
-		zlog.S.Warnf("Problem setting up KB details cron: %v", err)
-		return
+	if s.config.Scanning.LoadKbDetails {
+		scheduler := gocron.NewScheduler(time.UTC)
+		_, err := scheduler.Every(30).Minutes().Do(s.loadKBDetails)
+		if err != nil {
+			zlog.S.Warnf("Problem setting up KB details cron: %v", err)
+			return
+		}
+		scheduler.StartAsync()
+	} else {
+		zlog.L.Debug("KB version details not enabled. Not enabling cron.")
 	}
-	scheduler.StartAsync()
 }
 
 // KBDetails retrieves the KB details and send back to the requester.
@@ -63,6 +67,9 @@ func (s APIService) KBDetails(w http.ResponseWriter, r *http.Request) {
 	} else {
 		logContext = requestContext(r.Context(), reqID, "", "")
 	}
+	if len(kbDetails) == 0 {
+		kbDetails = fmt.Sprintf(`{"kb_version": { "monthly": "%v", "daily": "%v"}}`, "unknown", "unknown")
+	}
 	zs := sugaredLogger(logContext) // Setup logger with context
 	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
 	w.Header().Set(ContentTypeKey, ApplicationJSON)
@@ -74,9 +81,6 @@ func (s APIService) KBDetails(w http.ResponseWriter, r *http.Request) {
 func (s APIService) loadKBDetails() {
 	zs := sugaredLogger(context.TODO()) // Setup logger without context
 	zs.Debugf("Loading latest KB details...")
-	if len(kbDetails) == 0 {
-		kbDetails = fmt.Sprintf(`{"kb_version": { "monthly": "%v", "daily": "%v"}}`, "unknown", "unknown")
-	}
 	if len(engineVersion) == 0 {
 		engineVersion = "unknown"
 	}
