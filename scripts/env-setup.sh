@@ -106,21 +106,11 @@ CONF=app-config-prod.json
 if [ -n "$ENVIRONMENT" ] ; then
   CONF="app-config-${ENVIRONMENT}.json"
 fi
-if [ -f "$CONF" ] ; then
+if [ -f "$CONF" ] && [ ! -f "$CONF_DIR/$CONF" ] ; then
   echo "Copying app config to $CONF_DIR ..."
   if ! cp "$CONF" "$CONF_DIR/" ; then
     echo "copy $CONF failed"
     exit 1
-  fi
-else
-  if [ ! -f "$CONF_DIR/$CONF" ] ; then
-    read -p "Download sample $CONF (y/n) [y]? " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Nn]$ ]] ; then
-      echo "Please put the config file into: $CONF_DIR/$CONF"
-    elif ! curl $CONF_DOWNLOAD > "$CONF_DIR/$CONF" ; then
-      echo "Warning: curl download failed"
-    fi
   fi
 fi
 # Copy the binaries if requested
@@ -137,16 +127,8 @@ else
 fi
 # Copy the engine binary if it exists
 SC_ENGINE=scanoss
-if [ -f $SC_ENGINE ] ; then
-  echo "Copying $SC_ENGINE binary to /usr/bin ..."
-  if ! cp $SC_ENGINE /usr/bin ; then
-    echo "copy $SC_ENGINE failed"
-    exti 1
-  fi
-else
-  if [ ! -f /usr/bin/$SC_ENGINE ] ; then
-    echo "Please copy the $SC_ENGINE binary file into: /usr/bin/$SC_ENGINE"
-  fi
+if [ ! -f /usr/bin/$SC_ENGINE ] ; then
+    echo "Please copy/install the $SC_ENGINE binary file into: /usr/bin/$SC_ENGINE"
 fi
 echo "Installation complete."
 if [ "$service_stopped" == "true" ] ; then
@@ -156,6 +138,18 @@ if [ "$service_stopped" == "true" ] ; then
     exit 1
   fi
   systemctl status "$SC_SERVICE_NAME"
+else
+  read -p "Start SCANOSS Go API Service (y/n) [y]? " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Nn]$ ]] ; then
+    echo "Please start service later."
+  else
+    if ! systemctl start "$SC_SERVICE_NAME" ; then
+      echo "failed to restart service"
+      exit 1
+    fi
+    systemctl status "$SC_SERVICE_NAME"
+  fi
 fi
 if [ ! -f "$CONF_DIR/$CONF" ] ; then
   echo
