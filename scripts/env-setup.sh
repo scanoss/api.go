@@ -13,9 +13,18 @@
 if [ "$1" = "-h" ] || [ "$1" = "-help" ] ; then
   echo "$0 [-help] [environment]"
   echo "   Setup and copy the relevant files into place on a server to run the SCANOSS GO API"
+  echo "   [-f] force installation (skip all prompts)"
   echo "   [environment] allows the optional specification of a suffix to allow multiple services to be deployed at the same time (optional)"
   exit 1
 fi
+
+# Check if force flag is set
+FORCE_FLAG=false
+if [ "$1" = "-f" ]; then
+  FORCE_FLAG=true
+  shift # Shift arguments to handle environment correctly
+fi
+
 DEFAULT_ENV=""
 ENVIRONMENT="${1:-$DEFAULT_ENV}"
 
@@ -35,19 +44,25 @@ if [ "$EUID" -ne 0 ] ; then
   echo "Please run as root"
   exit 1
 fi
-read -p "Install SCANOSS Go API $ENVIRONMENT (y/n) [n]? " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]] ; then
-  echo "Starting installation..."
+
+if [ "$FORCE_FLAG" = true ]; then
+  echo "Force flag set. Installing SCANOSS Go API $ENVIRONMENT without prompts..."
 else
-  echo "Stopping."
-  exit 1
+  read -p "Install SCANOSS Go API $ENVIRONMENT (y/n) [n]? " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]] ; then
+    echo "Starting installation..."
+  else
+    echo "Stopping."
+    exit 1
+  fi
 fi
+
 # Setup all the required folders and ownership
 echo "Setting up API system folders..."
 if ! mkdir -p "$CONF_DIR" ; then
   echo "mkdir failed"
-  exti 1
+  exit 1
 fi
 if ! mkdir -p "$LOGS_DIR" ; then
   echo "mkdir failed"
@@ -94,7 +109,7 @@ echo "Copying service startup config..."
 if [ -f "$SC_SERVICE_FILE" ] ; then
   if ! cp "$SC_SERVICE_FILE" /etc/systemd/system ; then
     echo "service copy failed"
-    exti 1
+    exit 1
   fi
 fi
 if ! cp scanoss-go-api.sh /usr/local/bin ; then
@@ -131,6 +146,7 @@ if [ ! -f /usr/bin/$SC_ENGINE ] ; then
     echo "Please copy/install the $SC_ENGINE binary file into: /usr/bin/$SC_ENGINE"
 fi
 echo "Installation complete."
+
 if [ "$service_stopped" == "true" ] ; then
   echo "Restarting service after install..."
   if ! systemctl start "$SC_SERVICE_NAME" ; then
@@ -139,11 +155,22 @@ if [ "$service_stopped" == "true" ] ; then
   fi
   systemctl status "$SC_SERVICE_NAME"
 else
-  read -p "Start SCANOSS Go API Service (y/n) [y]? " -n 1 -r
-  echo
-  if [[ $REPLY =~ ^[Nn]$ ]] ; then
-    echo "Please start service later."
+
+ if [ "$FORCE_FLAG" = true ]; then
+    echo "Force flag set. Starting SCANOSS Go API Service..."
+    START_SERVICE=true
   else
+    read -p "Start SCANOSS Go API Service (y/n) [y]? " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Nn]$ ]] ; then
+      echo "Please start service later."
+      START_SERVICE=false
+    else
+      START_SERVICE=true
+    fi
+  fi
+
+  if [ "$START_SERVICE" = true ]; then
     if ! systemctl start "$SC_SERVICE_NAME" ; then
       echo "failed to restart service"
       exit 1
@@ -151,6 +178,7 @@ else
     systemctl status "$SC_SERVICE_NAME"
   fi
 fi
+
 if [ ! -f "$CONF_DIR/$CONF" ] ; then
   echo
   echo "Warning: Please create a configuration file in: $CONF_DIR/$CONF"
