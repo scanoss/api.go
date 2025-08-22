@@ -57,6 +57,7 @@ type ServerConfig struct {
 	Scanning struct {
 		WfpLoc         string `env:"SCAN_WFP_TMP"`            // specific location to write temporary WFP files to
 		ScanBinary     string `env:"SCAN_BINARY"`             // Binary to use for scanning
+		ScanKbName     string `env:"SCAN_KB_NAME"`            // KB name passed as "-n" parameter to the scanoss command
 		ScanDebug      bool   `env:"SCAN_DEBUG"`              // true/false
 		ScanFlags      int    `env:"SCAN_ENGINE_FLAGS"`       // Default flags to use when scanning
 		ScanTimeout    int    `env:"SCAN_ENGINE_TIMEOUT"`     // timeout for waiting for the scan engine to respond
@@ -106,6 +107,7 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.App.Mode = "dev"
 	cfg.Logging.DynamicPort = "localhost:60085"
 	cfg.Scanning.ScanBinary = "scanoss"
+	cfg.Scanning.ScanKbName = "oss"
 	cfg.Scanning.ScanFlags = 0
 	cfg.Scanning.TmpFileDelete = true
 	cfg.Scanning.Workers = 1       // Default to single threaded scanning

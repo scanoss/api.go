@@ -367,6 +367,9 @@ func (s APIService) scanWfp(wfp, flags, sbomType, sbomFile string, zs *zap.Sugar
 	if s.config.Scanning.ScanDebug {
 		args = append(args, "-d") // Set debug mode
 	}
+	if s.config.Scanning.ScanKbName != "" { //Set scanning KB name
+		args = append(args, fmt.Sprintf("-n%s", s.config.Scanning.ScanKbName))
+	}
 	if s.config.Scanning.ScanFlags > 0 { // Set system flags if enabled
 		args = append(args, fmt.Sprintf("-F %v", s.config.Scanning.ScanFlags))
 	} else if len(flags) > 0 && flags != "0" { // Set user supplied flags if enabled

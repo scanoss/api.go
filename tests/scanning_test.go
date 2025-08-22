@@ -18,10 +18,11 @@ package tests
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/suite"
 )
 
 type E2EScanningSuite struct {
@@ -42,6 +43,13 @@ func (s *E2EScanningSuite) TestScanning() {
 		extraFields map[string]string
 		want        int
 	}{
+		{
+			name:        "Test Invalid  KB name",
+			filename:    "../pkg/service/tests/fingers.wfp",
+			shortName:   "fingers.wfp",
+			extraFields: map[string]string{},
+			want:        http.StatusBadRequest,
+		},
 		{
 			name:        "Test Empty WFP",
 			filename:    "../pkg/service/tests/fingers-empty.wfp",

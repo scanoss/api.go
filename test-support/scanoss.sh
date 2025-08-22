@@ -51,6 +51,14 @@ if [ "$1" == "-l" ] || [ "$2" == "-l" ] || [ "$3" == "-l" ] ; then
   exit 0
 fi
 
+# Simulate invalid kb name
+if [ "$1" == "-n" ] || [ "$2" == "-n" ] || [ "$3" == "-n" ] || [ "$4" == "-n" ] || [ "$5" == "-n" ] || [ "$6" == "-n" ] || [ "$7" == "-n" ] || [ "$8" == "-n" ]; then
+  for i in "$@"; do :; done
+  scf=$i
+  echo "{Error: file and url tables must be present in $scf KB in order to proceed with the scan"
+  exit 1
+fi
+
 # Simulate return a scan result
 if [ "$1" == "-w" ] || [ "$2" == "-w" ] || [ "$3" == "-w" ] || [ "$4" == "-w" ] || [ "$5" == "-w" ] || [ "$6" == "-w" ] || [ "$7" == "-w" ] || [ "$8" == "-w" ]; then
   for i in "$@"; do :; done
