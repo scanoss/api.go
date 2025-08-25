@@ -371,9 +371,9 @@ func (s APIService) scanWfp(wfp, flags, sbomType, sbomFile, dbName string, zs *z
 	if s.config.Scanning.ScanDebug {
 		args = append(args, "-d") // Set debug mode
 	}
-	if len(dbName) > 0 && dbName != "" { //we want to prefer request over the local config
+	if len(dbName) > 0 && dbName != "" { // we want to prefer request over the local config
 		args = append(args, fmt.Sprintf("-n%s", dbName))
-	} else if s.config.Scanning.ScanKbName != "" { //Set scanning KB name
+	} else if s.config.Scanning.ScanKbName != "" { // Set scanning KB name
 		args = append(args, fmt.Sprintf("-n%s", s.config.Scanning.ScanKbName))
 	}
 	if s.config.Scanning.ScanFlags > 0 { // Set system flags if enabled
