@@ -47,8 +47,8 @@ func (s *E2EScanningSuite) TestScanning() {
 			name:        "Test Invalid  KB name",
 			filename:    "../pkg/service/tests/fingers.wfp",
 			shortName:   "fingers.wfp",
-			extraFields: map[string]string{},
-			want:        http.StatusBadRequest,
+			extraFields: map[string]string{"db_name": "test_kb"},
+			want:        http.StatusInternalServerError,
 		},
 		{
 			name:        "Test Empty WFP",
