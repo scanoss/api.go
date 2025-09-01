@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Upcoming changes...
+## [1.4.4] - 2025-08-28
+### Added
+- Added option to select scanning KB.
+  - `SCAN_KB_NAME` can be set to the scanning KB name. Default: oss. 
+- Updated dependency versions
 
 ## [1.4.3] - 2025-02-04
 ### Added

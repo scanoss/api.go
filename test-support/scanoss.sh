@@ -51,6 +51,19 @@ if [ "$1" == "-l" ] || [ "$2" == "-l" ] || [ "$3" == "-l" ] ; then
   exit 0
 fi
 
+# Simulate invalid kb name
+for arg in "$@"; do
+  if [[ "$arg" == "-n"* ]]; then
+    # Extract everything after "-n"
+    scf=${arg#-n}
+    # Only show error if the value is NOT "oss"
+    if [[ "$scf" != "oss" ]]; then
+      echo "{Error: file and url tables must be present in $scf KB in order to proceed with the scan"
+      exit 1
+    fi
+  fi
+done
+
 # Simulate return a scan result
 if [ "$1" == "-w" ] || [ "$2" == "-w" ] || [ "$3" == "-w" ] || [ "$4" == "-w" ] || [ "$5" == "-w" ] || [ "$6" == "-w" ] || [ "$7" == "-w" ] || [ "$8" == "-w" ]; then
   for i in "$@"; do :; done
