@@ -62,10 +62,10 @@ docker_build_test:
 
 e2e_test: docker_build_test clean_testcache  ## Run end to end integration tests using Docker
 	@echo "Running End-to-End tests..."
-	docker-compose down
-	docker-compose up -d
-	docker-compose exec -T http go test -v -tags="integration e2e" ./tests
-	docker-compose down
+	${DOCKER} compose down
+	${DOCKER} compose up -d
+	${DOCKER} compose exec -T http go test -v -tags="integration e2e" ./tests
+	${DOCKER} compose down
 
 ghcr_build: version  ## Build GitHub container image
 	@echo "Building GHCR container image..."
