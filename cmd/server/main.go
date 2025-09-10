@@ -14,7 +14,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package main loads the REST Scanning Server Service
+// Package main loads the REST Scanning Server Service.
 package main
 
 import (
