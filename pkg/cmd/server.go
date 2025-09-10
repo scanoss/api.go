@@ -14,7 +14,7 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Package cmd handles Scanning Service REST API launch
+// Package cmd handles Scanning Service REST API launch.
 package cmd
 
 import (

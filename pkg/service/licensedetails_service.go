@@ -41,7 +41,8 @@ func (s APIService) LicenseDetails(w http.ResponseWriter, r *http.Request) {
 	}
 	zs := sugaredLogger(logContext) // Setup logger with context
 	vars := mux.Vars(r)
-	zs.Infof("%v request from %v - %v", r.URL.Path, r.RemoteAddr, vars)
+	logRequestDetails(r, zs)
+	zs.Debugf("%v request from %v - %v", r.URL.Path, r.RemoteAddr, vars)
 	if len(vars) == 0 {
 		zs.Errorf("Failed to retrieve request variables")
 		http.Error(w, "ERROR no request variables submitted", http.StatusBadRequest)

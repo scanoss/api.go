@@ -41,7 +41,7 @@ func (s APIService) SbomAttribution(w http.ResponseWriter, r *http.Request) {
 		logContext = requestContext(r.Context(), reqID, "", "")
 	}
 	zs := sugaredLogger(logContext) // Setup logger with context
-	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
+	logRequestDetails(r, zs)
 	var contents []byte
 	var err error
 	formFiles := []string{"file", "filename"}

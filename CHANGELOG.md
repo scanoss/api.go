@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Upcoming changes...
+
+## [1.4.5] - 2025-09-10
+### Added
+- Added formatted logging for request details including:
+  - method, path, source_ip, and x_forwarded_for
+
 ## [1.4.4] - 2025-08-28
 ### Added
 - Added option to select scanning KB.
@@ -134,3 +140,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.4.1]: https://github.com/scanoss/api.go/compare/v1.4.0...v1.4.1
 [1.4.2]: https://github.com/scanoss/api.go/compare/v1.4.1...v1.4.2
 [1.4.3]: https://github.com/scanoss/api.go/compare/v1.4.2...v1.4.3
+[1.4.4]: https://github.com/scanoss/api.go/compare/v1.4.3...v1.4.4
+[1.4.5]: https://github.com/scanoss/api.go/compare/v1.4.4...v1.4.5

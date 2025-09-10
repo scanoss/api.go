@@ -71,7 +71,7 @@ func (s APIService) KBDetails(w http.ResponseWriter, r *http.Request) {
 		kbDetails = fmt.Sprintf(`{"kb_version": { "monthly": "%v", "daily": "%v"}}`, "unknown", "unknown")
 	}
 	zs := sugaredLogger(logContext) // Setup logger with context
-	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
+	logRequestDetails(r, zs)
 	w.Header().Set(ContentTypeKey, ApplicationJSON)
 	w.WriteHeader(http.StatusOK)
 	printResponse(w, fmt.Sprintf("%s\n", kbDetails), zlog.S, true)

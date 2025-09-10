@@ -40,8 +40,9 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 		logContext = requestContext(r.Context(), reqID, "", "")
 	}
 	zs := sugaredLogger(logContext) // Setup logger with context
+	logRequestDetails(r, zs)
 	vars := mux.Vars(r)
-	zs.Infof("%v request from %v - %v", r.URL.Path, r.RemoteAddr, vars)
+	zs.Debugf("%v request from %v - %v", r.URL.Path, r.RemoteAddr, vars)
 	if len(vars) == 0 {
 		zs.Errorf("Failed to retrieve request variables")
 		http.Error(w, "ERROR no request variables submitted", http.StatusBadRequest)

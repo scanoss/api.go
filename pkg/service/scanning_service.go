@@ -73,7 +73,7 @@ func (s APIService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 
 // scanDirect handles WFP scanning requests from a client.
 func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.SugaredLogger, context context.Context, span oteltrace.Span) int64 {
-	zs.Infof("%v request from %v", r.URL.Path, r.RemoteAddr)
+	logRequestDetails(r, zs)
 	contents, err := s.getFormFile(r, zs, "WFP")
 	if err != nil {
 		http.Error(w, "ERROR receiving WFP file contents", http.StatusBadRequest)
