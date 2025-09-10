@@ -1,44 +1,56 @@
 run:
-  timeout: 3m
-  skip-dirs:
-    - tests
+  timeout: 5m
 
 linters-settings:
   cyclop:
     max-complexity: 30
     package-average: 10.0
-
   errcheck:
     check-type-assertions: true
-
   exhaustive:
     check:
       - switch
       - map
-
   funlen:
     lines: 150
     statements: 80
-
   gocognit:
     min-complexity: 25
-
   gosec:
     excludes:
       - G204
-
   govet:
-    check-shadowing: true
     enable-all: true
     disable-all: false
     disable:
       - fieldalignment
-
   nakedret:
     max-func-lines: 10
-
   lll:
     line-length: 180
+  revive:
+    # Increase confidence to reduce false positives
+    confidence: 0.8
+    rules:
+      - name: exported
+        severity: error
+        disabled: false
+        arguments:
+          - "checkPrivateReceivers"
+      - name: package-comments
+        severity: error
+        disabled: false
+      - name: comment-spacings
+        severity: warning
+        disabled: false
+  godot:
+    scope: toplevel
+    exclude:
+      - "^fixme:"
+      - "^todo:"
+      - "^NOTE:"
+    period: true
+    capital: true
 
 linters:
   enable:
@@ -62,13 +74,19 @@ linters:
     - nonamedreturns
     - predeclared
     - reassign
+    - revive
     - stylecheck
     - unconvert
     - unparam
     - usestdlibvars
     - whitespace
+
 issues:
+  exclude-dirs:
+    - tests
   exclude-rules:
     - path: _test\.go
       linters:
         - gocognit
+        - godot
+        - funlen

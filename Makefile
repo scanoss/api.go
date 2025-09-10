@@ -36,14 +36,20 @@ int_test: clean_testcache  ## Run all integration tests in the tests folder
 	@echo "Running integration test framework..."
 	go test -v ./tests
 
-lint_local: ## Run local instance of linting across the code base
-	golangci-lint run ./...
+lint_local_clean: ## Cleanup the local cache from the linter
+	@echo "Cleaning linter cache..."
+	golangci-lint cache clean
 
-lint_local_fix: ## Run local instance of linting across the code base with FIX option
-	golangci-lint run ./... --fix
+lint_local: lint_local_clean ## Run local instance of linting across the code base
+	@echo "Running linter on codebase..."
+	golangci-lint run ./pkg/... ./cmd/...
+
+lint_local_fix: ## Run local instance of linting across the code base including auto-fixing
+	@echo "Running linter with fix option..."
+	golangci-lint run --fix ./pkg/... ./cmd/...
 
 lint_docker: ## Run docker instance of linting across the code base
-	docker run --rm -v $(pwd):/app -v ~/.cache/golangci-lint/v1.50.1:/root/.cache -w /app golangci/golangci-lint:v1.50.1 golangci-lint run ./...
+	docker run --rm -v $(PWD):/app -v ~/.cache/golangci-lint/v1.64.8:/root/.cache -w /app golangci/golangci-lint:v1.64.8 golangci-lint run ./pkg/... ./cmd/...
 
 run_local:  ## Launch the API locally for test
 	@echo "Launching API locally..."
