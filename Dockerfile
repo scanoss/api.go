@@ -1,4 +1,4 @@
-FROM golang:1.22 as build
+FROM golang:1.24 AS build
 
 WORKDIR /app
 
@@ -12,11 +12,11 @@ COPY . ./
 RUN go generate ./pkg/cmd/server.go
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./scanoss-go-api ./cmd/server
 
-FROM build as test
+FROM build AS test
 
 COPY test-support/scanoss.sh /app/scanoss.sh
 
-FROM debian:buster-slim as production
+FROM debian:buster-slim AS production
 
 WORKDIR /app
  
