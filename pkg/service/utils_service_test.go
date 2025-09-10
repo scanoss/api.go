@@ -16,6 +16,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -24,6 +25,10 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 
 	"github.com/golobby/config/v3"
 	"github.com/gorilla/mux"
@@ -212,4 +217,244 @@ func TestHeadResponse(t *testing.T) {
 	fmt.Println("Status: ", resp.StatusCode)
 	fmt.Println("Type: ", resp.Header.Get("Content-Type"))
 	fmt.Println("Body: ", string(body))
+}
+
+func TestLogRequestDetails(t *testing.T) {
+	tests := []struct {
+		name               string
+		path               string
+		method             string
+		remoteAddr         string
+		xForwardedFor      string
+		xRealIP            string
+		cfConnectingIP     string
+		expectedLogCount   int
+		expectedLogLevel   zapcore.Level
+		expectedLogMessage string
+		expectedFields     map[string]interface{}
+	}{
+		{
+			name:               "Basic request without proxy headers",
+			path:               "/scan/direct",
+			method:             "POST",
+			remoteAddr:         "192.168.1.100:12345",
+			xForwardedFor:      "",
+			xRealIP:            "",
+			cfConnectingIP:     "",
+			expectedLogCount:   1,
+			expectedLogLevel:   zapcore.InfoLevel,
+			expectedLogMessage: "Request received",
+			expectedFields: map[string]interface{}{
+				"path":      "/scan/direct",
+				"source_ip": "192.168.1.100:12345",
+				"method":    "POST",
+			},
+		},
+		{
+			name:               "Request with X-Forwarded-For header",
+			path:               "/kb/details",
+			method:             "GET",
+			remoteAddr:         "10.0.0.1:54321",
+			xForwardedFor:      "203.0.113.45",
+			xRealIP:            "",
+			cfConnectingIP:     "",
+			expectedLogCount:   1,
+			expectedLogLevel:   zapcore.InfoLevel,
+			expectedLogMessage: "Request received",
+			expectedFields: map[string]interface{}{
+				"path":            "/kb/details",
+				"source_ip":       "10.0.0.1:54321",
+				"method":          "GET",
+				"x_forwarded_for": "203.0.113.45",
+			},
+		},
+		{
+			name:               "Request with X-Real-IP header (when X-Forwarded-For is empty)",
+			path:               "/health",
+			method:             "GET",
+			remoteAddr:         "172.16.0.1:8080",
+			xForwardedFor:      "",
+			xRealIP:            "198.51.100.25",
+			cfConnectingIP:     "",
+			expectedLogCount:   1,
+			expectedLogLevel:   zapcore.InfoLevel,
+			expectedLogMessage: "Request received",
+			expectedFields: map[string]interface{}{
+				"path":            "/health",
+				"source_ip":       "172.16.0.1:8080",
+				"method":          "GET",
+				"x_forwarded_for": "198.51.100.25",
+			},
+		},
+		{
+			name:               "Request with CF-Connecting-IP header (Cloudflare)",
+			path:               "/metrics/prometheus",
+			method:             "GET",
+			remoteAddr:         "10.1.1.1:443",
+			xForwardedFor:      "",
+			xRealIP:            "",
+			cfConnectingIP:     "203.0.113.100",
+			expectedLogCount:   1,
+			expectedLogLevel:   zapcore.InfoLevel,
+			expectedLogMessage: "Request received",
+			expectedFields: map[string]interface{}{
+				"path":            "/metrics/prometheus",
+				"source_ip":       "10.1.1.1:443",
+				"method":          "GET",
+				"x_forwarded_for": "203.0.113.100",
+			},
+		},
+		{
+			name:               "Request with multiple proxy headers (X-Forwarded-For takes precedence)",
+			path:               "/scan/direct",
+			method:             "POST",
+			remoteAddr:         "10.0.0.1:12345",
+			xForwardedFor:      "203.0.113.1",
+			xRealIP:            "198.51.100.1",
+			cfConnectingIP:     "192.0.2.1",
+			expectedLogCount:   1,
+			expectedLogLevel:   zapcore.InfoLevel,
+			expectedLogMessage: "Request received",
+			expectedFields: map[string]interface{}{
+				"path":            "/scan/direct",
+				"source_ip":       "10.0.0.1:12345",
+				"method":          "POST",
+				"x_forwarded_for": "203.0.113.1",
+			},
+		},
+		{
+			name:               "Request with comma-separated X-Forwarded-For",
+			path:               "/sbom/attribution",
+			method:             "POST",
+			remoteAddr:         "10.0.0.1:9090",
+			xForwardedFor:      "203.0.113.1, 198.51.100.1, 192.0.2.1",
+			xRealIP:            "",
+			cfConnectingIP:     "",
+			expectedLogCount:   1,
+			expectedLogLevel:   zapcore.InfoLevel,
+			expectedLogMessage: "Request received",
+			expectedFields: map[string]interface{}{
+				"path":            "/sbom/attribution",
+				"source_ip":       "10.0.0.1:9090",
+				"method":          "POST",
+				"x_forwarded_for": "203.0.113.1, 198.51.100.1, 192.0.2.1",
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// Create a logger with an observer to capture log entries
+			observedZapCore, observedLogs := observer.New(zapcore.InfoLevel)
+			observedLogger := zap.New(observedZapCore).Sugar()
+
+			// Create a test HTTP request
+			req := httptest.NewRequest(test.method, test.path, bytes.NewReader([]byte{}))
+			req.RemoteAddr = test.remoteAddr
+
+			// Set headers if provided
+			if test.xForwardedFor != "" {
+				req.Header.Set("X-Forwarded-For", test.xForwardedFor)
+			}
+			if test.xRealIP != "" {
+				req.Header.Set("X-Real-IP", test.xRealIP)
+			}
+			if test.cfConnectingIP != "" {
+				req.Header.Set("CF-Connecting-IP", test.cfConnectingIP)
+			}
+
+			// Call the function under test
+			logRequestDetails(req, observedLogger)
+
+			// Verify log entry count
+			assert.Equal(t, test.expectedLogCount, observedLogs.Len(), "Expected log count mismatch")
+
+			if test.expectedLogCount > 0 {
+				// Get the first (and should be only) log entry
+				logEntry := observedLogs.All()[0]
+
+				// Verify log level
+				assert.Equal(t, test.expectedLogLevel, logEntry.Level, "Expected log level mismatch")
+
+				// Verify log message
+				assert.Equal(t, test.expectedLogMessage, logEntry.Message, "Expected log message mismatch")
+
+				// Verify log fields
+				for expectedKey, expectedValue := range test.expectedFields {
+					actualValue := logEntry.ContextMap()[expectedKey]
+					assert.Equal(t, expectedValue, actualValue, "Expected field '%s' mismatch", expectedKey)
+				}
+			}
+		})
+	}
+}
+
+func TestGetClientIP(t *testing.T) {
+	tests := []struct {
+		name                string
+		remoteAddr          string
+		xForwardedFor       string
+		xRealIP             string
+		cfConnectingIP      string
+		expectedSourceIP    string
+		expectedForwardedIP string
+	}{
+		{
+			name:                "No proxy headers",
+			remoteAddr:          "192.168.1.100:12345",
+			xForwardedFor:       "",
+			xRealIP:             "",
+			cfConnectingIP:      "",
+			expectedSourceIP:    "192.168.1.100:12345",
+			expectedForwardedIP: "",
+		},
+		{
+			name:                "X-Forwarded-For present",
+			remoteAddr:          "10.0.0.1:54321",
+			xForwardedFor:       "203.0.113.45",
+			xRealIP:             "198.51.100.25",
+			cfConnectingIP:      "192.0.2.50",
+			expectedSourceIP:    "10.0.0.1:54321",
+			expectedForwardedIP: "203.0.113.45",
+		},
+		{
+			name:                "X-Real-IP used when X-Forwarded-For empty",
+			remoteAddr:          "172.16.0.1:8080",
+			xForwardedFor:       "",
+			xRealIP:             "198.51.100.25",
+			cfConnectingIP:      "192.0.2.50",
+			expectedSourceIP:    "172.16.0.1:8080",
+			expectedForwardedIP: "198.51.100.25",
+		},
+		{
+			name:                "CF-Connecting-IP used when others empty",
+			remoteAddr:          "10.1.1.1:443",
+			xForwardedFor:       "",
+			xRealIP:             "",
+			cfConnectingIP:      "203.0.113.100",
+			expectedSourceIP:    "10.1.1.1:443",
+			expectedForwardedIP: "203.0.113.100",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			// Create a test HTTP request
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.RemoteAddr = test.remoteAddr
+			// Set headers if provided
+			if test.xForwardedFor != "" {
+				req.Header.Set("X-Forwarded-For", test.xForwardedFor)
+			}
+			if test.xRealIP != "" {
+				req.Header.Set("X-Real-IP", test.xRealIP)
+			}
+			if test.cfConnectingIP != "" {
+				req.Header.Set("CF-Connecting-IP", test.cfConnectingIP)
+			}
+			// Call the function under test
+			sourceIP, forwardedIP := getClientIP(req)
+			// Verify results
+			assert.Equal(t, test.expectedSourceIP, sourceIP, "Expected source IP mismatch")
+			assert.Equal(t, test.expectedForwardedIP, forwardedIP, "Expected forwarded IP mismatch")
+		})
+	}
 }

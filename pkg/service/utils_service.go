@@ -358,3 +358,32 @@ func addSpanEvent(span oteltrace.Span, msg string, options ...oteltrace.EventOpt
 		span.AddEvent(msg, options...)
 	}
 }
+
+// logRequestDetails logs details about the HTTP request, including method, path, and client IP addresses.
+func logRequestDetails(r *http.Request, zs *zap.SugaredLogger) {
+	sourceIP, forwardedIP := getClientIP(r)
+	// Create structured log fields
+	logFields := []interface{}{
+		"method", r.Method,
+		"path", r.URL.Path,
+		"source_ip", sourceIP,
+		"x_forwarded_for", forwardedIP,
+	}
+	zs.Infow("Request received", logFields...)
+}
+
+// getClientIP extracts the client's IP address from the HTTP request, including support for proxy headers.
+// Returns the source IP and the forwarded IP if available.
+func getClientIP(r *http.Request) (string, string) {
+	// Get the source IP
+	sourceIP := r.RemoteAddr
+	xForwardedFor := r.Header.Get("X-Forwarded-For")
+	// You can also check other common proxy headers
+	if xForwardedFor == "" {
+		xForwardedFor = r.Header.Get("X-Real-IP")
+	}
+	if xForwardedFor == "" {
+		xForwardedFor = r.Header.Get("CF-Connecting-IP") // Cloudflare
+	}
+	return sourceIP, xForwardedFor
+}
