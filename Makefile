@@ -2,6 +2,7 @@
 #vars
 IMAGE_NAME=scanoss-go-api
 REPO=scanoss
+DOCKER=$(shell which docker)
 DOCKER_FULLNAME=${REPO}/${IMAGE_NAME}
 GHCR_FULLNAME=ghcr.io/${REPO}/${IMAGE_NAME}
 VERSION=$(shell ./version.sh)
@@ -49,7 +50,7 @@ lint_local_fix: ## Run local instance of linting across the code base including 
 	golangci-lint run --fix ./pkg/... ./cmd/...
 
 lint_docker: ## Run docker instance of linting across the code base
-	docker run --rm -v $(PWD):/app -v ~/.cache/golangci-lint/v1.64.8:/root/.cache -w /app golangci/golangci-lint:v1.64.8 golangci-lint run ./pkg/... ./cmd/...
+	${DOCKER} run --rm -v $(PWD):/app -v ~/.cache/golangci-lint/v1.64.8:/root/.cache -w /app golangci/golangci-lint:v1.64.8 golangci-lint run ./pkg/... ./cmd/...
 
 run_local:  ## Launch the API locally for test
 	@echo "Launching API locally..."
@@ -57,27 +58,27 @@ run_local:  ## Launch the API locally for test
 
 docker_build_test:
 	@echo "Building test image..."
-	docker build . -t scanoss_api_go_service_test --target=test
+	${DOCKER} build . -t scanoss_api_go_service_test --target=test
 
 e2e_test: docker_build_test clean_testcache  ## Run end to end integration tests using Docker
 	@echo "Running End-to-End tests..."
-	docker-compose down
-	docker-compose up -d
-	docker-compose exec -T http go test -v -tags="integration e2e" ./tests
-	docker-compose down
+	${DOCKER} compose down
+	${DOCKER} compose up -d
+	${DOCKER} compose exec -T http go test -v -tags="integration e2e" ./tests
+	${DOCKER} compose down
 
 ghcr_build: version  ## Build GitHub container image
 	@echo "Building GHCR container image..."
-	docker build --no-cache -t $(GHCR_FULLNAME) --platform linux/amd64 .
+	${DOCKER} build --no-cache -t $(GHCR_FULLNAME) --platform linux/amd64 .
 
 ghcr_tag:  ## Tag the latest GH container image with the version from Git tag
 	@echo "Tagging GHCR latest image with $(VERSION)..."
-	docker tag $(GHCR_FULLNAME):latest $(GHCR_FULLNAME):$(VERSION)
+	${DOCKER} tag $(GHCR_FULLNAME):latest $(GHCR_FULLNAME):$(VERSION)
 
 ghcr_push:  ## Push the GH container image to GH Packages
 	@echo "Publishing GHCR container $(VERSION)..."
-	docker push $(GHCR_FULLNAME):$(VERSION)
-	docker push $(GHCR_FULLNAME):latest
+	${DOCKER} push $(GHCR_FULLNAME):$(VERSION)
+	${DOCKER} push $(GHCR_FULLNAME):latest
 
 ghcr_all: ghcr_build ghcr_tag ghcr_push  ## Execute all GitHub Package container actions
 
