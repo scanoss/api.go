@@ -1,0 +1,48 @@
+{
+  "App": {
+    "Name": "SCANOSS GO API Demo",
+    "Port": "5443",
+    "Addr": "",
+    "Debug": true,
+    "Trace": true,
+    "Mode": "dev"
+  },
+  "Logging": {
+    "DynamicLogging": true,
+    "DynamicPort": "localhost:60085",
+    "OutputPaths": [
+      "stderr"
+    ],
+    "ConfigFile": ""
+  },
+  "Telemetry": {
+    "Enabled": true,
+    "ExtraMetrics": true,
+    "OltpExporter": "otel-collector:4317"
+  },
+  "Scanning": {
+    "WfpLoc": "",
+    "ScanBinary": "/usr/local/bin/scanoss",
+    "ScanDebug": false,
+    "ScanFlags": 0,
+    "ScanTimeout": 180,
+    "WfpGrouping": 3,
+    "Workers": 2,
+    "TmpFileDelete": true,
+    "KeepFailedWfps": true,
+    "HPSMEnabled": true,
+    "FileContents": true,
+    "LoadKbDetails": true,
+    "ScanningURL": "http://localhost:5443"
+  },
+  "TLS": {
+    "CertFile": "",
+    "KeyFile": ""
+  },
+  "Filtering": {
+    "AllowListFile": "",
+    "DenyListFile": "",
+    "BlockByDefault": false,
+    "TrustProxy": false
+  }
+}
