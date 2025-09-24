@@ -389,22 +389,20 @@ func getClientIP(r *http.Request) (string, string) {
 	return sourceIP, xForwardedFor
 }
 
-// Detects charset for a given text in a buffer
+// detectCharset detects charset for a given text in a buffer.
 func detectCharset(buffer []byte) (string, error) {
 
 	if len(buffer) > 32768 {
 		buffer = buffer[:32768]
 	}
-	// Create detector
+	// Create detector.
 	detector := chardet.NewTextDetector()
-
-	// Detect charset
+	// Detect charset.
 	result, err := detector.DetectBest(buffer)
 	if err != nil {
 		return "", fmt.Errorf("error detectando charset: %w", err)
 	}
-
-	// If confidence is low, consider it as UTF-8
+	// If confidence is low, consider it as UTF-8.
 	if result.Confidence < 10 {
 		return "UTF-8", nil
 	}

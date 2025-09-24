@@ -72,7 +72,7 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 	charset, err := detectCharset(output)
 	if err != nil {
 		zs.Errorf("Failed to detect charset for md5: %s", md5)
-		// If there is an error, use UTF-8 as fallback
+		// If there is an error, use UTF-8 as fallback.
 		charset = "UTF-8"
 	}
 
