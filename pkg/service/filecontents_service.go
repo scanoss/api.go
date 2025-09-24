@@ -28,7 +28,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// FileContents handles retrieval of sources file for a client
+// FileContents handles retrieval of sources file for a client.
 func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 	counters.incRequest("file_contents")
 	reqID := getReqID(r)
