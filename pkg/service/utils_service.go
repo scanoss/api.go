@@ -405,6 +405,5 @@ func detectCharset(buffer []byte) (string, error) {
 	if result.Confidence < 10 {
 		return "UTF-8", nil
 	}
-
 	return result.Charset, nil
 }
