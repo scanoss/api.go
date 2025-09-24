@@ -152,7 +152,7 @@ func TestMetricsHandler(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			req := newReq("GET", "http://localhost/metrics/{type}", "", test.input)
+			req := newReq(http.MethodGet, "http://localhost/metrics/{type}", "", test.input)
 			w := httptest.NewRecorder()
 			MetricsHandler(w, req)
 			resp := w.Result()
@@ -236,7 +236,7 @@ func TestLogRequestDetails(t *testing.T) {
 		{
 			name:               "Basic request without proxy headers",
 			path:               "/scan/direct",
-			method:             "POST",
+			method:             http.MethodPost,
 			remoteAddr:         "192.168.1.100:12345",
 			xForwardedFor:      "",
 			xRealIP:            "",
@@ -247,13 +247,13 @@ func TestLogRequestDetails(t *testing.T) {
 			expectedFields: map[string]interface{}{
 				"path":      "/scan/direct",
 				"source_ip": "192.168.1.100:12345",
-				"method":    "POST",
+				"method":    http.MethodPost,
 			},
 		},
 		{
 			name:               "Request with X-Forwarded-For header",
 			path:               "/kb/details",
-			method:             "GET",
+			method:     http.MethodGet,
 			remoteAddr:         "10.0.0.1:54321",
 			xForwardedFor:      "203.0.113.45",
 			xRealIP:            "",
@@ -264,14 +264,14 @@ func TestLogRequestDetails(t *testing.T) {
 			expectedFields: map[string]interface{}{
 				"path":            "/kb/details",
 				"source_ip":       "10.0.0.1:54321",
-				"method":          "GET",
+				"method":          http.MethodGet,
 				"x_forwarded_for": "203.0.113.45",
 			},
 		},
 		{
 			name:               "Request with X-Real-IP header (when X-Forwarded-For is empty)",
 			path:               "/health",
-			method:             "GET",
+			method:     http.MethodGet,
 			remoteAddr:         "172.16.0.1:8080",
 			xForwardedFor:      "",
 			xRealIP:            "198.51.100.25",
@@ -282,14 +282,14 @@ func TestLogRequestDetails(t *testing.T) {
 			expectedFields: map[string]interface{}{
 				"path":            "/health",
 				"source_ip":       "172.16.0.1:8080",
-				"method":          "GET",
+				"method":          http.MethodGet,
 				"x_forwarded_for": "198.51.100.25",
 			},
 		},
 		{
 			name:               "Request with CF-Connecting-IP header (Cloudflare)",
 			path:               "/metrics/prometheus",
-			method:             "GET",
+			method:     http.MethodGet,
 			remoteAddr:         "10.1.1.1:443",
 			xForwardedFor:      "",
 			xRealIP:            "",
@@ -300,14 +300,14 @@ func TestLogRequestDetails(t *testing.T) {
 			expectedFields: map[string]interface{}{
 				"path":            "/metrics/prometheus",
 				"source_ip":       "10.1.1.1:443",
-				"method":          "GET",
+				"method":          http.MethodGet,
 				"x_forwarded_for": "203.0.113.100",
 			},
 		},
 		{
 			name:               "Request with multiple proxy headers (X-Forwarded-For takes precedence)",
 			path:               "/scan/direct",
-			method:             "POST",
+			method:     http.MethodPost,
 			remoteAddr:         "10.0.0.1:12345",
 			xForwardedFor:      "203.0.113.1",
 			xRealIP:            "198.51.100.1",
@@ -318,14 +318,14 @@ func TestLogRequestDetails(t *testing.T) {
 			expectedFields: map[string]interface{}{
 				"path":            "/scan/direct",
 				"source_ip":       "10.0.0.1:12345",
-				"method":          "POST",
+				"method":          http.MethodPost,
 				"x_forwarded_for": "203.0.113.1",
 			},
 		},
 		{
 			name:               "Request with comma-separated X-Forwarded-For",
 			path:               "/sbom/attribution",
-			method:             "POST",
+			method:     http.MethodPost,
 			remoteAddr:         "10.0.0.1:9090",
 			xForwardedFor:      "203.0.113.1, 198.51.100.1, 192.0.2.1",
 			xRealIP:            "",
@@ -336,7 +336,7 @@ func TestLogRequestDetails(t *testing.T) {
 			expectedFields: map[string]interface{}{
 				"path":            "/sbom/attribution",
 				"source_ip":       "10.0.0.1:9090",
-				"method":          "POST",
+				"method":          http.MethodPost,
 				"x_forwarded_for": "203.0.113.1, 198.51.100.1, 192.0.2.1",
 			},
 		},
