@@ -1,8 +1,6 @@
 module scanoss.com/go-api
 
-go 1.24.0
-
-toolchain go1.24.5
+go 1.24.4
 
 require (
 	github.com/go-co-op/gocron v1.37.0
@@ -38,6 +36,7 @@ require (
 	github.com/phuslu/iploc v1.0.20250901 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
+	github.com/saintfish/chardet v0.0.0-20230101081208-5e3ef4b5456d
 	github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.7.1 // indirect

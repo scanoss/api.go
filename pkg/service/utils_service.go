@@ -38,6 +38,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/saintfish/chardet"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"go.uber.org/zap"
 	myconfig "scanoss.com/go-api/pkg/config"
@@ -386,4 +387,27 @@ func getClientIP(r *http.Request) (string, string) {
 		xForwardedFor = r.Header.Get("CF-Connecting-IP") // Cloudflare
 	}
 	return sourceIP, xForwardedFor
+}
+
+// Detects charset for a given text in a buffer
+func detectCharset(buffer []byte) (string, error) {
+
+	if len(buffer) > 32768 {
+		buffer = buffer[:32768]
+	}
+	// Create detector
+	detector := chardet.NewTextDetector()
+
+	// Detect charset
+	result, err := detector.DetectBest(buffer)
+	if err != nil {
+		return "", fmt.Errorf("error detectando charset: %w", err)
+	}
+
+	// If confidence is low, consider it as UTF-8
+	if result.Confidence < 10 {
+		return "UTF-8", nil
+	}
+
+	return result.Charset, nil
 }

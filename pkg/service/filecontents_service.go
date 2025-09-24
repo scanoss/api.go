@@ -19,6 +19,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"os/exec"
 	"strings"
@@ -65,14 +66,25 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		zs.Errorf("Contents command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)
 		zs.Errorf("Command output: %s", bytes.TrimSpace(output))
-		http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
+		http.Error(w, "ERROR recovering file contents", http.StatusInternalServerError)
 		return
 	}
+	charset, err := detectCharset(output)
+	if err != nil {
+		zs.Errorf("Failed to detect charset for md5: %s", md5)
+		// If there is an error, use UTF-8 as fallback
+		charset = "UTF-8"
+	}
+
 	if s.config.App.Trace {
 		zs.Debugf("Sending back contents: %v - '%s'", len(output), output)
 	} else {
 		zs.Debugf("Sending back contents: %v", len(output))
 	}
-	w.Header().Set(ContentTypeKey, TextPlain)
+
+	w.Header().Set("Content-Type", fmt.Sprintf("text/plain; charset=%s", charset))
+	w.Header().Set("X-Detected-Charset", charset)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(output)))
+
 	printResponse(w, string(output), zs, false)
 }
