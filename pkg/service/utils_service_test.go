@@ -225,9 +225,7 @@ func TestLogRequestDetails(t *testing.T) {
 		path               string
 		method             string
 		remoteAddr         string
-		xForwardedFor      string
-		xRealIP            string
-		cfConnectingIP     string
+		headers            map[string]string
 		expectedLogCount   int
 		expectedLogLevel   zapcore.Level
 		expectedLogMessage string
@@ -238,9 +236,7 @@ func TestLogRequestDetails(t *testing.T) {
 			path:               "/scan/direct",
 			method:             http.MethodPost,
 			remoteAddr:         "192.168.1.100:12345",
-			xForwardedFor:      "",
-			xRealIP:            "",
-			cfConnectingIP:     "",
+			headers:            map[string]string{},
 			expectedLogCount:   1,
 			expectedLogLevel:   zapcore.InfoLevel,
 			expectedLogMessage: "Request received",
@@ -251,13 +247,13 @@ func TestLogRequestDetails(t *testing.T) {
 			},
 		},
 		{
-			name:               "Request with X-Forwarded-For header",
-			path:               "/kb/details",
+			name:       "Request with X-Forwarded-For header",
+			path:       "/kb/details",
 			method:     http.MethodGet,
-			remoteAddr:         "10.0.0.1:54321",
-			xForwardedFor:      "203.0.113.45",
-			xRealIP:            "",
-			cfConnectingIP:     "",
+			remoteAddr: "10.0.0.1:54321",
+			headers: map[string]string{
+				"X-Forwarded-For": "203.0.113.45",
+			},
 			expectedLogCount:   1,
 			expectedLogLevel:   zapcore.InfoLevel,
 			expectedLogMessage: "Request received",
@@ -269,13 +265,13 @@ func TestLogRequestDetails(t *testing.T) {
 			},
 		},
 		{
-			name:               "Request with X-Real-IP header (when X-Forwarded-For is empty)",
-			path:               "/health",
+			name:       "Request with X-Real-IP header (when X-Forwarded-For is empty)",
+			path:       "/health",
 			method:     http.MethodGet,
-			remoteAddr:         "172.16.0.1:8080",
-			xForwardedFor:      "",
-			xRealIP:            "198.51.100.25",
-			cfConnectingIP:     "",
+			remoteAddr: "172.16.0.1:8080",
+			headers: map[string]string{
+				"X-Real-IP": "198.51.100.25",
+			},
 			expectedLogCount:   1,
 			expectedLogLevel:   zapcore.InfoLevel,
 			expectedLogMessage: "Request received",
@@ -287,13 +283,13 @@ func TestLogRequestDetails(t *testing.T) {
 			},
 		},
 		{
-			name:               "Request with CF-Connecting-IP header (Cloudflare)",
-			path:               "/metrics/prometheus",
+			name:       "Request with CF-Connecting-IP header (Cloudflare)",
+			path:       "/metrics/prometheus",
 			method:     http.MethodGet,
-			remoteAddr:         "10.1.1.1:443",
-			xForwardedFor:      "",
-			xRealIP:            "",
-			cfConnectingIP:     "203.0.113.100",
+			remoteAddr: "10.1.1.1:443",
+			headers: map[string]string{
+				"CF-Connecting-IP": "203.0.113.100",
+			},
 			expectedLogCount:   1,
 			expectedLogLevel:   zapcore.InfoLevel,
 			expectedLogMessage: "Request received",
@@ -305,13 +301,15 @@ func TestLogRequestDetails(t *testing.T) {
 			},
 		},
 		{
-			name:               "Request with multiple proxy headers (X-Forwarded-For takes precedence)",
-			path:               "/scan/direct",
+			name:       "Request with multiple proxy headers (X-Forwarded-For takes precedence)",
+			path:       "/scan/direct",
 			method:     http.MethodPost,
-			remoteAddr:         "10.0.0.1:12345",
-			xForwardedFor:      "203.0.113.1",
-			xRealIP:            "198.51.100.1",
-			cfConnectingIP:     "192.0.2.1",
+			remoteAddr: "10.0.0.1:12345",
+			headers: map[string]string{
+				"X-Forwarded-For":  "203.0.113.1",
+				"X-Real-IP":        "198.51.100.1",
+				"CF-Connecting-IP": "192.0.2.1",
+			},
 			expectedLogCount:   1,
 			expectedLogLevel:   zapcore.InfoLevel,
 			expectedLogMessage: "Request received",
@@ -323,13 +321,13 @@ func TestLogRequestDetails(t *testing.T) {
 			},
 		},
 		{
-			name:               "Request with comma-separated X-Forwarded-For",
-			path:               "/sbom/attribution",
+			name:       "Request with comma-separated X-Forwarded-For",
+			path:       "/sbom/attribution",
 			method:     http.MethodPost,
-			remoteAddr:         "10.0.0.1:9090",
-			xForwardedFor:      "203.0.113.1, 198.51.100.1, 192.0.2.1",
-			xRealIP:            "",
-			cfConnectingIP:     "",
+			remoteAddr: "10.0.0.1:9090",
+			headers: map[string]string{
+				"X-Forwarded-For": "203.0.113.1, 198.51.100.1, 192.0.2.1",
+			},
 			expectedLogCount:   1,
 			expectedLogLevel:   zapcore.InfoLevel,
 			expectedLogMessage: "Request received",
@@ -351,15 +349,9 @@ func TestLogRequestDetails(t *testing.T) {
 			req := httptest.NewRequest(test.method, test.path, bytes.NewReader([]byte{}))
 			req.RemoteAddr = test.remoteAddr
 
-			// Set headers if provided
-			if test.xForwardedFor != "" {
-				req.Header.Set("X-Forwarded-For", test.xForwardedFor)
-			}
-			if test.xRealIP != "" {
-				req.Header.Set("X-Real-IP", test.xRealIP)
-			}
-			if test.cfConnectingIP != "" {
-				req.Header.Set("CF-Connecting-IP", test.cfConnectingIP)
+			// Set headers from the headers map
+			for key, value := range test.headers {
+				req.Header.Set(key, value)
 			}
 
 			// Call the function under test
@@ -392,45 +384,44 @@ func TestGetClientIP(t *testing.T) {
 	tests := []struct {
 		name                string
 		remoteAddr          string
-		xForwardedFor       string
-		xRealIP             string
-		cfConnectingIP      string
+		headers             map[string]string
 		expectedSourceIP    string
 		expectedForwardedIP string
 	}{
 		{
 			name:                "No proxy headers",
 			remoteAddr:          "192.168.1.100:12345",
-			xForwardedFor:       "",
-			xRealIP:             "",
-			cfConnectingIP:      "",
+			headers:             map[string]string{},
 			expectedSourceIP:    "192.168.1.100:12345",
 			expectedForwardedIP: "",
 		},
 		{
-			name:                "X-Forwarded-For present",
-			remoteAddr:          "10.0.0.1:54321",
-			xForwardedFor:       "203.0.113.45",
-			xRealIP:             "198.51.100.25",
-			cfConnectingIP:      "192.0.2.50",
+			name:       "X-Forwarded-For present",
+			remoteAddr: "10.0.0.1:54321",
+			headers: map[string]string{
+				"X-Forwarded-For":  "203.0.113.45",
+				"X-Real-IP":        "198.51.100.25",
+				"CF-Connecting-IP": "192.0.2.50",
+			},
 			expectedSourceIP:    "10.0.0.1:54321",
 			expectedForwardedIP: "203.0.113.45",
 		},
 		{
-			name:                "X-Real-IP used when X-Forwarded-For empty",
-			remoteAddr:          "172.16.0.1:8080",
-			xForwardedFor:       "",
-			xRealIP:             "198.51.100.25",
-			cfConnectingIP:      "192.0.2.50",
+			name:       "X-Real-IP used when X-Forwarded-For empty",
+			remoteAddr: "172.16.0.1:8080",
+			headers: map[string]string{
+				"X-Real-IP":        "198.51.100.25",
+				"CF-Connecting-IP": "192.0.2.50",
+			},
 			expectedSourceIP:    "172.16.0.1:8080",
 			expectedForwardedIP: "198.51.100.25",
 		},
 		{
-			name:                "CF-Connecting-IP used when others empty",
-			remoteAddr:          "10.1.1.1:443",
-			xForwardedFor:       "",
-			xRealIP:             "",
-			cfConnectingIP:      "203.0.113.100",
+			name:       "CF-Connecting-IP used when others empty",
+			remoteAddr: "10.1.1.1:443",
+			headers: map[string]string{
+				"CF-Connecting-IP": "203.0.113.100",
+			},
 			expectedSourceIP:    "10.1.1.1:443",
 			expectedForwardedIP: "203.0.113.100",
 		},
@@ -440,15 +431,9 @@ func TestGetClientIP(t *testing.T) {
 			// Create a test HTTP request
 			req := httptest.NewRequest(http.MethodGet, "/test", nil)
 			req.RemoteAddr = test.remoteAddr
-			// Set headers if provided
-			if test.xForwardedFor != "" {
-				req.Header.Set("X-Forwarded-For", test.xForwardedFor)
-			}
-			if test.xRealIP != "" {
-				req.Header.Set("X-Real-IP", test.xRealIP)
-			}
-			if test.cfConnectingIP != "" {
-				req.Header.Set("CF-Connecting-IP", test.cfConnectingIP)
+			// Set headers from the headers map
+			for key, value := range test.headers {
+				req.Header.Set(key, value)
 			}
 			// Call the function under test
 			sourceIP, forwardedIP := getClientIP(req)
