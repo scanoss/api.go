@@ -28,7 +28,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// FileContents handles retrieval of sources file for a client.
+// FileContents handles retrieval of sources file for a client
 func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 	counters.incRequest("file_contents")
 	reqID := getReqID(r)
@@ -75,16 +75,13 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 		// If there is an error, use UTF-8 as fallback.
 		charset = "UTF-8"
 	}
-
 	if s.config.App.Trace {
 		zs.Debugf("Sending back contents: %v - '%s'", len(output), output)
 	} else {
 		zs.Debugf("Sending back contents: %v", len(output))
 	}
-
 	w.Header().Set("Content-Type", fmt.Sprintf("text/plain; charset=%s", charset))
 	w.Header().Set("X-Detected-Charset", charset)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(output)))
-
 	printResponse(w, string(output), zs, false)
 }

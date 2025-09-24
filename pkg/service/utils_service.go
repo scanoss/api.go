@@ -391,7 +391,6 @@ func getClientIP(r *http.Request) (string, string) {
 
 // detectCharset detects charset for a given text in a buffer.
 func detectCharset(buffer []byte) (string, error) {
-
 	if len(buffer) > 32768 {
 		buffer = buffer[:32768]
 	}
