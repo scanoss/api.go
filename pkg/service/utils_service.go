@@ -368,6 +368,8 @@ func logRequestDetails(r *http.Request, zs *zap.SugaredLogger) {
 		"path", r.URL.Path,
 		"source_ip", sourceIP,
 		"x_forwarded_for", forwardedIP,
+		"x_scanoss_client", r.Header.Get("X-Scanoss-Client"),
+		"user_agent", r.UserAgent(),
 	}
 	zs.Infow("Request received", logFields...)
 }
