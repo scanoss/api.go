@@ -338,6 +338,62 @@ func TestLogRequestDetails(t *testing.T) {
 				"x_forwarded_for": "203.0.113.1, 198.51.100.1, 192.0.2.1",
 			},
 		},
+		{
+			name:       "Request with User-Agent header",
+			path:       "/scan/direct",
+			method:     http.MethodPost,
+			remoteAddr: "192.168.1.50:8080",
+			headers: map[string]string{
+				"User-Agent": "scanoss-py/v1.30.0",
+			},
+			expectedLogCount:   1,
+			expectedLogLevel:   zapcore.InfoLevel,
+			expectedLogMessage: "Request received",
+			expectedFields: map[string]interface{}{
+				"path":       "/scan/direct",
+				"source_ip":  "192.168.1.50:8080",
+				"method":     http.MethodPost,
+				"user_agent": "scanoss-py/v1.30.0",
+			},
+		},
+		{
+			name:       "Request with X-Scanoss-Client header",
+			path:       "/kb/details",
+			method:     http.MethodGet,
+			remoteAddr: "10.0.0.5:9000",
+			headers: map[string]string{
+				"X-Scanoss-Client": "tool: scanoss-py, version: 1.30.0, date: 20250722103216, utime: 1753180336",
+			},
+			expectedLogCount:   1,
+			expectedLogLevel:   zapcore.InfoLevel,
+			expectedLogMessage: "Request received",
+			expectedFields: map[string]interface{}{
+				"path":             "/kb/details",
+				"source_ip":        "10.0.0.5:9000",
+				"method":           http.MethodGet,
+				"x_scanoss_client": "tool: scanoss-py, version: 1.30.0, date: 20250722103216, utime: 1753180336",
+			},
+		},
+		{
+			name:       "Request with both User-Agent and X-Scanoss-Client headers",
+			path:       "/sbom/attribution",
+			method:     http.MethodPost,
+			remoteAddr: "172.16.1.10:3000",
+			headers: map[string]string{
+				"User-Agent":       "scanoss-py/v1.30.0",
+				"X-Scanoss-Client": "tool: scanoss-py, version: 1.30.0, date: 20250722103216, utime: 1753180336",
+			},
+			expectedLogCount:   1,
+			expectedLogLevel:   zapcore.InfoLevel,
+			expectedLogMessage: "Request received",
+			expectedFields: map[string]interface{}{
+				"path":             "/sbom/attribution",
+				"source_ip":        "172.16.1.10:3000",
+				"method":           http.MethodPost,
+				"user_agent":       "scanoss-py/v1.30.0",
+				"x_scanoss_client": "tool: scanoss-py, version: 1.30.0, date: 20250722103216, utime: 1753180336",
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
