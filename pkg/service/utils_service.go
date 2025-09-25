@@ -38,7 +38,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
-	"github.com/saintfish/chardet"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"go.uber.org/zap"
 	myconfig "scanoss.com/go-api/pkg/config"
@@ -56,7 +55,7 @@ const (
 	TraceLogKey          = "trace_id"
 	CharsetDetectedKey   = "X-Detected-Charset"
 	ContentLengthKey     = "Content-Length"
-	CharSetMinConfidence = 10
+	CharSetMinConfidence = 0.6
 )
 
 // RequestContextKey Request ID Key name for using with Context.
@@ -390,23 +389,4 @@ func getClientIP(r *http.Request) (string, string) {
 		xForwardedFor = r.Header.Get("CF-Connecting-IP") // Cloudflare
 	}
 	return sourceIP, xForwardedFor
-}
-
-// detectCharset detects charset for a given text in a buffer.
-func detectCharset(buffer []byte) (string, error) {
-	if len(buffer) > 32768 {
-		buffer = buffer[:32768]
-	}
-	// Create detector.
-	detector := chardet.NewTextDetector()
-	// Detect charset.
-	result, err := detector.DetectBest(buffer)
-	if err != nil {
-		return "", fmt.Errorf("error detecting charset: %w", err)
-	}
-	// If confidence is low, consider it as UTF-8.
-	if result.Confidence < CharSetMinConfidence {
-		return "UTF-8", nil
-	}
-	return result.Charset, nil
 }
