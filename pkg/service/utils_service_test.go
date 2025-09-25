@@ -394,6 +394,26 @@ func TestLogRequestDetails(t *testing.T) {
 				"x_scanoss_client": "tool: scanoss-py, version: 1.30.0, date: 20250722103216, utime: 1753180336",
 			},
 		},
+		{
+			name:       "Request with both lowercase User-Agent and X-Scanoss-Client headers",
+			path:       "/sbom/attribution",
+			method:     http.MethodPost,
+			remoteAddr: "172.16.1.10:3000",
+			headers: map[string]string{
+				"user-agent":       "scanoss-py/v1.30.0",
+				"x-scanoss-client": "tool: scanoss-py, version: 1.30.0, date: 20250722103216, utime: 1753180336",
+			},
+			expectedLogCount:   1,
+			expectedLogLevel:   zapcore.InfoLevel,
+			expectedLogMessage: "Request received",
+			expectedFields: map[string]interface{}{
+				"path":             "/sbom/attribution",
+				"source_ip":        "172.16.1.10:3000",
+				"method":           http.MethodPost,
+				"user_agent":       "scanoss-py/v1.30.0",
+				"x_scanoss_client": "tool: scanoss-py, version: 1.30.0, date: 20250722103216, utime: 1753180336",
+			},
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
