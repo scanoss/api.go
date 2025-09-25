@@ -461,23 +461,23 @@ func TestGetClientIP(t *testing.T) {
 
 func TestDetectCharset(t *testing.T) {
 	tests := []struct {
-		name            string
-		input           []byte
-		expectedCharset string
+		name             string
+		input            []byte
+		expectedCharset  string
 		acceptedCharsets []string // Alternative acceptable charsets
-		expectError     bool
+		expectError      bool
 	}{
 		{
-			name:            "UTF-8 text with English",
-			input:           []byte("Hello, world! This is UTF-8 text."),
+			name:             "UTF-8 text with English",
+			input:            []byte("Hello, world! This is UTF-8 text."),
 			acceptedCharsets: []string{"UTF-8", "ISO-8859-1", "ISO-8859-2", "windows-1252"}, // ASCII-compatible text can be detected as various charsets
-			expectError:     false,
+			expectError:      false,
 		},
 		{
-			name:            "Plain ASCII text",
-			input:           []byte("Simple ASCII text without special characters"),
+			name:             "Plain ASCII text",
+			input:            []byte("Simple ASCII text without special characters"),
 			acceptedCharsets: []string{"UTF-8", "ISO-8859-1", "ISO-8859-2", "windows-1252", "ISO-8859-15"},
-			expectError:     false,
+			expectError:      false,
 		},
 		{
 			name:            "Empty buffer",
@@ -492,10 +492,10 @@ func TestDetectCharset(t *testing.T) {
 			expectError:     false,
 		},
 		{
-			name:            "Large ASCII buffer",
-			input:           bytes.Repeat([]byte("abcdefghijklmnopqrstuvwxyz"), 1500),
+			name:             "Large ASCII buffer",
+			input:            bytes.Repeat([]byte("abcdefghijklmnopqrstuvwxyz"), 1500),
 			acceptedCharsets: []string{"UTF-8", "ISO-8859-1", "ISO-8859-2", "windows-1252"},
-			expectError:     false,
+			expectError:      false,
 		},
 		{
 			name:            "UTF-16 BOM",
@@ -504,10 +504,10 @@ func TestDetectCharset(t *testing.T) {
 			expectError:     false,
 		},
 		{
-			name:            "HTML document",
-			input:           []byte("<!DOCTYPE html><html><head><title>Test Page</title></head><body><h1>Hello World</h1></body></html>"),
+			name:             "HTML document",
+			input:            []byte("<!DOCTYPE html><html><head><title>Test Page</title></head><body><h1>Hello World</h1></body></html>"),
 			acceptedCharsets: []string{"UTF-8", "ISO-8859-1", "ISO-8859-2", "windows-1252"},
-			expectError:     false,
+			expectError:      false,
 		},
 		{
 			name:            "Low confidence binary data",
@@ -516,10 +516,10 @@ func TestDetectCharset(t *testing.T) {
 			expectError:     false,
 		},
 		{
-			name:            "ISO-8859-1 with Latin characters",
-			input:           []byte("Café, naïve, résumé"),
+			name:             "ISO-8859-1 with Latin characters",
+			input:            []byte("Café, naïve, résumé"),
 			acceptedCharsets: []string{"UTF-8", "ISO-8859-1", "windows-1252"},
-			expectError:     false,
+			expectError:      false,
 		},
 		{
 			name:            "Chinese text in UTF-8",
@@ -534,10 +534,10 @@ func TestDetectCharset(t *testing.T) {
 			expectError:     false,
 		},
 		{
-			name:            "Mixed content with numbers",
-			input:           []byte("Test123 with numbers 456 and symbols !@#$%"),
+			name:             "Mixed content with numbers",
+			input:            []byte("Test123 with numbers 456 and symbols !@#$%"),
 			acceptedCharsets: []string{"UTF-8", "ISO-8859-1", "ISO-8859-2", "windows-1252"},
-			expectError:     false,
+			expectError:      false,
 		},
 	}
 
@@ -554,12 +554,13 @@ func TestDetectCharset(t *testing.T) {
 			assert.NoError(t, err, "Expected no error but got: %v", err)
 
 			// Check charset result
-			if test.expectedCharset != "" {
+			switch {
+			case test.expectedCharset != "":
 				assert.Equal(t, test.expectedCharset, charset, "Expected charset mismatch")
-			} else if len(test.acceptedCharsets) > 0 {
+			case len(test.acceptedCharsets) > 0:
 				assert.Contains(t, test.acceptedCharsets, charset,
 					"Detected charset '%s' not in accepted list: %v", charset, test.acceptedCharsets)
-			} else {
+			default:
 				assert.NotEmpty(t, charset, "Charset should not be empty")
 			}
 		})
