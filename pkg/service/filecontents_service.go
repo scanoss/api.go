@@ -70,12 +70,7 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ERROR recovering file contents", http.StatusInternalServerError)
 		return
 	}
-	charset, err := detectCharset(output)
-	if err != nil {
-		zs.Errorf("Failed to detect charset for md5: %s", md5)
-		// If there is an error, use UTF-8 as fallback.
-		charset = "UTF-8"
-	}
+	charset := detectCharset(output)
 	if s.config.App.Trace {
 		zs.Debugf("Sending back contents: %v - '%s'", len(output), output)
 	} else {
@@ -88,7 +83,7 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 }
 
 // detectCharset detects charset for a given text in a buffer.
-func detectCharset(buffer []byte) (string, error) {
+func detectCharset(buffer []byte) string {
 	if len(buffer) > 32768 {
 		buffer = buffer[:32768]
 	}
@@ -96,7 +91,7 @@ func detectCharset(buffer []byte) (string, error) {
 	result := chardet.Detect(buffer)
 	// If confidence is low, consider it as UTF-8.
 	if result.Confidence < CharSetMinConfidence {
-		return "UTF-8", nil
+		return "UTF-8"
 	}
-	return result.Encoding, nil
+	return result.Encoding
 }
