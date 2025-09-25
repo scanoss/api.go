@@ -19,12 +19,14 @@ package service
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/wlynxg/chardet"
 )
 
 // FileContents handles retrieval of sources file for a client.
@@ -65,14 +67,31 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		zs.Errorf("Contents command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)
 		zs.Errorf("Command output: %s", bytes.TrimSpace(output))
-		http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
+		http.Error(w, "ERROR recovering file contents", http.StatusInternalServerError)
 		return
 	}
+	charset := detectCharset(output)
 	if s.config.App.Trace {
 		zs.Debugf("Sending back contents: %v - '%s'", len(output), output)
 	} else {
 		zs.Debugf("Sending back contents: %v", len(output))
 	}
-	w.Header().Set(ContentTypeKey, TextPlain)
+	w.Header().Set(ContentTypeKey, fmt.Sprintf("text/plain; charset=%s", charset))
+	w.Header().Set(CharsetDetectedKey, charset)
+	w.Header().Set(ContentLengthKey, fmt.Sprintf("%d", len(output)))
 	printResponse(w, string(output), zs, false)
+}
+
+// detectCharset detects charset for a given text in a buffer.
+func detectCharset(buffer []byte) string {
+	if len(buffer) > 32768 {
+		buffer = buffer[:32768]
+	}
+	// Detect charset.
+	result := chardet.Detect(buffer)
+	// If confidence is low, consider it as UTF-8.
+	if result.Confidence < CharSetMinConfidence {
+		return "UTF-8"
+	}
+	return result.Encoding
 }

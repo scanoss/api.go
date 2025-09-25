@@ -1,8 +1,6 @@
 module scanoss.com/go-api
 
-go 1.24.0
-
-toolchain go1.24.5
+go 1.24.4
 
 require (
 	github.com/go-co-op/gocron v1.37.0
@@ -12,6 +10,7 @@ require (
 	github.com/jpillora/ipfilter v1.2.9
 	github.com/scanoss/zap-logging-helper v0.4.0
 	github.com/stretchr/testify v1.11.1
+	github.com/wlynxg/chardet v1.0.4
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.63.0
 	go.opentelemetry.io/otel v1.38.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.38.0

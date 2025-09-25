@@ -45,14 +45,17 @@ import (
 
 // Constants for use through the API services.
 const (
-	ContentTypeKey  = "content-type"
-	RequestIDKey    = "x-request-id"
-	ResponseIDKey   = "x-response-id"
-	ApplicationJSON = "application/json"
-	TextPlain       = "text/plain"
-	ReqLogKey       = "reqId"
-	SpanLogKey      = "span_id"
-	TraceLogKey     = "trace_id"
+	ContentTypeKey       = "content-type"
+	RequestIDKey         = "x-request-id"
+	ResponseIDKey        = "x-response-id"
+	ApplicationJSON      = "application/json"
+	TextPlain            = "text/plain"
+	ReqLogKey            = "reqId"
+	SpanLogKey           = "span_id"
+	TraceLogKey          = "trace_id"
+	CharsetDetectedKey   = "X-Detected-Charset"
+	ContentLengthKey     = "Content-Length"
+	CharSetMinConfidence = 0.6
 )
 
 // RequestContextKey Request ID Key name for using with Context.
