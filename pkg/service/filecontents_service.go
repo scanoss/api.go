@@ -80,8 +80,8 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 	} else {
 		zs.Debugf("Sending back contents: %v", len(output))
 	}
-	w.Header().Set("Content-Type", fmt.Sprintf("text/plain; charset=%s", charset))
-	w.Header().Set("X-Detected-Charset", charset)
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(output)))
+	w.Header().Set(ContentTypeKey, fmt.Sprintf("text/plain; charset=%s", charset))
+	w.Header().Set(CharsetDetectedKey, charset)
+	w.Header().Set(ContentLengthKey, fmt.Sprintf("%d", len(output)))
 	printResponse(w, string(output), zs, false)
 }

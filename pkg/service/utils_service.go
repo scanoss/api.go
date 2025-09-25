@@ -46,14 +46,17 @@ import (
 
 // Constants for use through the API services.
 const (
-	ContentTypeKey  = "content-type"
-	RequestIDKey    = "x-request-id"
-	ResponseIDKey   = "x-response-id"
-	ApplicationJSON = "application/json"
-	TextPlain       = "text/plain"
-	ReqLogKey       = "reqId"
-	SpanLogKey      = "span_id"
-	TraceLogKey     = "trace_id"
+	ContentTypeKey       = "content-type"
+	RequestIDKey         = "x-request-id"
+	ResponseIDKey        = "x-response-id"
+	ApplicationJSON      = "application/json"
+	TextPlain            = "text/plain"
+	ReqLogKey            = "reqId"
+	SpanLogKey           = "span_id"
+	TraceLogKey          = "trace_id"
+	CharsetDetectedKey   = "X-Detected-Charset"
+	ContentLengthKey     = "Content-Length"
+	CharSetMinConfidence = 10
 )
 
 // RequestContextKey Request ID Key name for using with Context.
@@ -399,10 +402,10 @@ func detectCharset(buffer []byte) (string, error) {
 	// Detect charset.
 	result, err := detector.DetectBest(buffer)
 	if err != nil {
-		return "", fmt.Errorf("error detectando charset: %w", err)
+		return "", fmt.Errorf("error detecting charset: %w", err)
 	}
 	// If confidence is low, consider it as UTF-8.
-	if result.Confidence < 10 {
+	if result.Confidence < CharSetMinConfidence {
 		return "UTF-8", nil
 	}
 	return result.Charset, nil
