@@ -6,12 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.5.0] - 2025-09-26
 ### Added
 - Added logging for `User-Agent` and `X-Scanoss-Client` headers in request
 - Charset detection for file contents retrieved via the endpoint `file_contents`. New response headers:
-    - `X-Detected-Charset`: Reports the detected character encoding
-    - `Content-Length`: Reports the exact file size in bytes
-
+  - `X-Detected-Charset`: Reports the detected character encoding
+  - `Content-Length`: Reports the exact file size in bytes
 
 ## [1.4.5] - 2025-09-10
 ### Added
@@ -146,3 +147,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.4.3]: https://github.com/scanoss/api.go/compare/v1.4.2...v1.4.3
 [1.4.4]: https://github.com/scanoss/api.go/compare/v1.4.3...v1.4.4
 [1.4.5]: https://github.com/scanoss/api.go/compare/v1.4.4...v1.4.5
+[1.4.5]: https://github.com/scanoss/api.go/compare/v1.4.4...v1.4.5
+
