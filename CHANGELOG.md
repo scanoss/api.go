@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Added logging for `User-Agent` and `X-Scanoss-Client` headers in request
+- Charset detection for file contents retrieved via the endpoint `file_contents`. New response headers:
+    - `X-Detected-Charset`: Reports the detected character encoding
+    - `Content-Length`: Reports the exact file size in bytes
+
 
 ## [1.4.5] - 2025-09-10
 ### Added
