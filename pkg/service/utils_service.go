@@ -54,6 +54,7 @@ const (
 	SpanLogKey           = "span_id"
 	TraceLogKey          = "trace_id"
 	CharsetDetectedKey   = "X-Detected-Charset"
+	ContentLengthKey     = "Content-Length"
 	CharSetMinConfidence = 0.7
 )
 
