@@ -83,7 +83,6 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 
 // detectCharset detects charset for a given text in a buffer.
 func detectCharset(buffer []byte) string {
-
 	// Detect charset.
 	result := chardet.Detect(buffer)
 	// If confidence is low, consider it as UTF-8.
