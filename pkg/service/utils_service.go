@@ -54,8 +54,7 @@ const (
 	SpanLogKey           = "span_id"
 	TraceLogKey          = "trace_id"
 	CharsetDetectedKey   = "X-Detected-Charset"
-	ContentLengthKey     = "Content-Length"
-	CharSetMinConfidence = 0.6
+	CharSetMinConfidence = 0.7
 )
 
 // RequestContextKey Request ID Key name for using with Context.

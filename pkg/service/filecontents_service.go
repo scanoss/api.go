@@ -78,15 +78,12 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set(ContentTypeKey, fmt.Sprintf("text/plain; charset=%s", charset))
 	w.Header().Set(CharsetDetectedKey, charset)
-	w.Header().Set(ContentLengthKey, fmt.Sprintf("%d", len(output)))
 	printResponse(w, string(output), zs, false)
 }
 
 // detectCharset detects charset for a given text in a buffer.
 func detectCharset(buffer []byte) string {
-	if len(buffer) > 32768 {
-		buffer = buffer[:32768]
-	}
+
 	// Detect charset.
 	result := chardet.Detect(buffer)
 	// If confidence is low, consider it as UTF-8.
