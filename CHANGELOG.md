@@ -12,7 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added Custom Contents URL support (`SCANOSS_FILE_CONTENTS_URL`)
 
-
 ## [1.5.1]- 2025-10-0
 ### Added
 - Removed `Content-Length` from header as it is reported with Loadbalancer

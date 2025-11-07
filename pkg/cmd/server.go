@@ -93,15 +93,19 @@ func setupEnvVars(cfg *myconfig.ServerConfig) {
 			zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS_URL value to %v: %v", contentsURL, err)
 		}
 	}
-	if customContentsURL := os.Getenv("SCANOSS_FILE_CONTENTS"); len(customContentsURL) > 0 {
+	if customContentsURL := os.Getenv("SCANOSS_FILE_CONTENTS_URL"); len(customContentsURL) > 0 {
 		zlog.S.Infof("Using custom content URL: %s.", customContentsURL)
 	}
 	err := os.Setenv("SCANOSS_FILE_CONTENTS", fmt.Sprintf("%v", cfg.Scanning.FileContents))
 	if err != nil {
-		zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS SCANOSS_API_URL value to %v: %v", cfg.Scanning.FileContents, err)
+		zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS value to %v: %v", cfg.Scanning.FileContents, err)
 	}
 	if customContents := os.Getenv("SCANOSS_FILE_CONTENTS"); len(customContents) > 0 && customContents == "false" {
 		zlog.S.Infof("Skipping file_url datafield.")
+		err2 := os.Setenv("SCANOSS_FILE_CONTENTS_URL", customContents) // Force the contents URL to say 'false' also
+		if err2 != nil {
+			zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS_URL value to %v: %v", customContents, err)
+		}
 	}
 }
 
