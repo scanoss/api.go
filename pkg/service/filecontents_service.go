@@ -43,6 +43,10 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 	}
 	zs := sugaredLogger(logContext) // Setup logger with context
 	logRequestDetails(r, zs)
+	if !s.config.Scanning.FileContents {
+		zs.Warn("File contents retrieval is disabled.")
+		http.Error(w, "ERROR file contents disabled", http.StatusForbidden)
+	}
 	vars := mux.Vars(r)
 	zs.Debugf("%v request from %v - %v", r.URL.Path, r.RemoteAddr, vars)
 	if len(vars) == 0 {
