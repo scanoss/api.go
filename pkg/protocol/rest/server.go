@@ -99,6 +99,8 @@ func RunServer(config *myconfig.ServerConfig, version string) error {
 	router.HandleFunc("/license/obligations/{license}", apiService.LicenseDetails).Methods(http.MethodGet)
 	router.HandleFunc("/api/scan/direct", apiService.ScanDirect).Methods(http.MethodPost)
 	router.HandleFunc("/scan/direct", apiService.ScanDirect).Methods(http.MethodPost)
+	router.HandleFunc("/api/scan/batch", apiService.ScanBatch).Methods(http.MethodPost)
+	router.HandleFunc("/scan/batch", apiService.ScanBatch).Methods(http.MethodPost)
 	router.HandleFunc("/api/sbom/attribution", apiService.SbomAttribution).Methods(http.MethodPost)
 	router.HandleFunc("/sbom/attribution", apiService.SbomAttribution).Methods(http.MethodPost)
 	// Setup Open Telemetry (OTEL)

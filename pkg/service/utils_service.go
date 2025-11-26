@@ -297,6 +297,18 @@ func removeFile(f *os.File, zs *zap.SugaredLogger) {
 	}
 }
 
+// removeFileByPath removes the file at the given path and warns if anything went wrong.
+func removeFileByPath(path string, zs *zap.SugaredLogger) {
+	if len(path) > 0 {
+		err := os.Remove(path)
+		if err != nil {
+			zs.Warnf("Problem removing file: %v - %v", path, err)
+		} else {
+			zs.Debugf("Removed file: %v", path)
+		}
+	}
+}
+
 // getReqID extracts the request id from the header and if not creates one and returns it.
 func getReqID(r *http.Request) string {
 	reqID := strings.TrimSpace(r.Header.Get(RequestIDKey)) // Request ID
@@ -391,4 +403,31 @@ func getClientIP(r *http.Request) (string, string) {
 		xForwardedFor = r.Header.Get("CF-Connecting-IP") // Cloudflare
 	}
 	return sourceIP, xForwardedFor
+}
+
+// sessionLockStruct manages locks for batch scan sessions to prevent concurrent writes.
+type sessionLockStruct struct {
+	mu    sync.Mutex
+	locks map[string]*sync.Mutex
+}
+
+var sessionLocks = sessionLockStruct{
+	locks: make(map[string]*sync.Mutex),
+}
+
+// getSessionLock returns a lock for the given session ID, creating one if it doesn't exist.
+func (s *sessionLockStruct) getSessionLock(sessionID string) *sync.Mutex {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.locks[sessionID] == nil {
+		s.locks[sessionID] = &sync.Mutex{}
+	}
+	return s.locks[sessionID]
+}
+
+// releaseSessionLock removes the lock for the given session ID.
+func (s *sessionLockStruct) releaseSessionLock(sessionID string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.locks, sessionID)
 }

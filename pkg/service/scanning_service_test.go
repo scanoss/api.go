@@ -449,3 +449,108 @@ func TestScanDirectSingleHPSM(t *testing.T) {
 		})
 	}
 }
+
+func TestScanBatchChunked(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	myConfig := setupConfig(t)
+	myConfig.App.Trace = true
+	myConfig.Scanning.ScanDebug = true
+	apiService := NewAPIService(myConfig)
+
+	tests := []struct {
+		name          string
+		binary        string
+		sessionID     string
+		chunks        []string // WFP file paths for each chunk
+		finalChunkIdx int      // Index of the chunk that should have X-Final-Chunk: true
+		wantStatuses  []int    // Expected status code for each chunk
+	}{
+		{
+			name:          "Batch Scanning - missing session ID",
+			binary:        "../../test-support/scanoss.sh",
+			sessionID:     "", // Empty session ID should fail
+			chunks:        []string{"./tests/fingers.wfp"},
+			finalChunkIdx: 0,
+			wantStatuses:  []int{http.StatusBadRequest},
+		},
+		{
+			name:          "Batch Scanning - invalid session ID",
+			binary:        "../../test-support/scanoss.sh",
+			sessionID:     "../invalid/path", // Path traversal attempt
+			chunks:        []string{"./tests/fingers.wfp"},
+			finalChunkIdx: 0,
+			wantStatuses:  []int{http.StatusBadRequest},
+		},
+		{
+			name:          "Batch Scanning - single chunk success",
+			binary:        "../../test-support/scanoss.sh",
+			sessionID:     "test-session-single",
+			chunks:        []string{"./tests/fingers.wfp"},
+			finalChunkIdx: 0,
+			wantStatuses:  []int{http.StatusOK},
+		},
+		{
+			name:          "Batch Scanning - multiple chunks success",
+			binary:        "../../test-support/scanoss.sh",
+			sessionID:     "test-session-multi",
+			chunks:        []string{"./tests/single-finger.wfp", "./tests/fingers.wfp"},
+			finalChunkIdx: 1,
+			wantStatuses:  []int{http.StatusAccepted, http.StatusOK},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			myConfig.Scanning.ScanBinary = test.binary
+
+			for idx, chunkFile := range test.chunks {
+				postBody := new(bytes.Buffer)
+				mw := multipart.NewWriter(postBody)
+
+				file, err := os.Open(chunkFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				writer, err := mw.CreateFormFile("file", chunkFile)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if _, err = io.Copy(writer, file); err != nil {
+					t.Fatal(err)
+				}
+				_ = mw.Close()
+				_ = file.Close()
+
+				req := httptest.NewRequest(http.MethodPost, "http://localhost/scan/batch", postBody)
+				w := httptest.NewRecorder()
+				req.Header.Add("Content-Type", mw.FormDataContentType())
+
+				// Add Session-Id header
+				if len(test.sessionID) > 0 {
+					req.Header.Add("Session-Id", test.sessionID)
+				}
+
+				// Add X-Final-Chunk header for the final chunk
+				if idx == test.finalChunkIdx {
+					req.Header.Add("X-Final-Chunk", "true")
+				}
+
+				apiService.ScanBatch(w, req)
+				resp := w.Result()
+				body, err := io.ReadAll(resp.Body)
+				if err != nil {
+					t.Fatalf("an error was not expected when reading from request: %v", err)
+				}
+
+				assert.Equal(t, test.wantStatuses[idx], resp.StatusCode)
+				fmt.Printf("Chunk %d Status: %d\n", idx, resp.StatusCode)
+				fmt.Printf("Chunk %d Type: %s\n", idx, resp.Header.Get("Content-Type"))
+				fmt.Printf("Chunk %d Body: %s\n", idx, string(body))
+			}
+		})
+	}
+}

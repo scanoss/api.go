@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -69,6 +70,200 @@ func (s APIService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 			zs.Debugf("Scan stats: files: %v, scan_time: %v, file_time: %v", wfpCount, elapsedTime, fileScanTime)
 		}
 	}
+}
+
+// ScanBatch handles batch WFP scanning requests with chunked uploads from a client.
+// Chunks are accumulated in a session-specific WFP file, and the scan is launched when X-Final-Chunk: true is received.
+func (s APIService) ScanBatch(w http.ResponseWriter, r *http.Request) {
+	requestStartTime := time.Now() // Capture the scan start time
+	counters.incRequest("scan")
+	reqID := getReqID(r)
+	w.Header().Set(ResponseIDKey, reqID)
+
+	var logContext context.Context
+	var span oteltrace.Span
+	// Get the oltp span (if requested) and set logging context
+	if s.config.Telemetry.Enabled {
+		span, logContext = getSpan(r.Context(), reqID)
+	} else {
+		logContext = requestContext(r.Context(), reqID, "", "")
+	}
+	zs := sugaredLogger(logContext) // Setup logger with context
+	logRequestDetails(r, zs)
+
+	// Extract Session-Id header (required)
+	sessionID := strings.TrimSpace(r.Header.Get("Session-Id"))
+	if len(sessionID) == 0 {
+		zs.Errorf("Missing Session-Id header")
+		http.Error(w, "ERROR Session-Id header is required", http.StatusBadRequest)
+		setSpanError(span, "Missing Session-Id header")
+		return
+	}
+
+	// Validate session ID to prevent path traversal attacks
+	if strings.Contains(sessionID, "/") || strings.Contains(sessionID, "..") {
+		zs.Errorf("Invalid Session-Id: %v", sessionID)
+		http.Error(w, "ERROR invalid Session-Id", http.StatusBadRequest)
+		setSpanError(span, "Invalid Session-Id")
+		return
+	}
+
+	// Extract X-Final-Chunk header (optional, defaults to false)
+	finalChunk := strings.ToLower(strings.TrimSpace(r.Header.Get("X-Final-Chunk"))) == "true"
+
+	// Get WFP chunk from multipart form
+	chunkContents, err := s.getFormFile(r, zs, "WFP")
+	if err != nil {
+		http.Error(w, "ERROR receiving WFP chunk contents", http.StatusBadRequest)
+		return
+	}
+
+	chunkTrimmed := bytes.TrimSpace(chunkContents)
+	if len(chunkTrimmed) == 0 {
+		zs.Errorf("No WFP chunk contents to append (%v - %v)", len(chunkContents), chunkContents)
+		http.Error(w, "ERROR no WFP chunk contents supplied", http.StatusBadRequest)
+		setSpanError(span, "No WFP chunk contents supplied")
+		return
+	}
+
+	// Append chunk to session file
+	sessionFilePath := filepath.Join(s.config.Scanning.WfpLoc, sessionID+".wfp")
+	if err := s.appendWfpChunk(sessionID, sessionFilePath, chunkTrimmed, zs); err != nil {
+		zs.Errorf("Failed to append WFP chunk: %v", err)
+		http.Error(w, "ERROR failed to append WFP chunk", http.StatusInternalServerError)
+		setSpanError(span, fmt.Sprintf("Failed to append WFP chunk: %v", err))
+		return
+	}
+
+	zs.Debugf("Appended WFP chunk to session %v (final: %v)", sessionID, finalChunk)
+
+	// If this is the final chunk, launch the scan
+	if finalChunk {
+		// Release the session lock after scan completes
+		defer sessionLocks.releaseSessionLock(sessionID)
+		defer removeFileByPath(sessionFilePath, zs) // Clean up session file after scan
+
+		zs.Infof("Final chunk received for session %v, launching scan...", sessionID)
+
+		// Read the complete WFP file
+		completeWfp, err := os.ReadFile(sessionFilePath)
+		if err != nil {
+			zs.Errorf("Failed to read complete WFP file: %v", err)
+			http.Error(w, "ERROR failed to read complete WFP file", http.StatusInternalServerError)
+			setSpanError(span, fmt.Sprintf("Failed to read WFP file: %v", err))
+			return
+		}
+
+		contentsTrimmed := bytes.TrimSpace(completeWfp)
+		if len(contentsTrimmed) == 0 {
+			zs.Errorf("No WFP contents to scan in session %v", sessionID)
+			http.Error(w, "ERROR no WFP contents in session", http.StatusBadRequest)
+			setSpanError(span, "No WFP contents in session")
+			return
+		}
+
+		// Extract optional parameters (same as scan/direct)
+		flags, scanType, sbom, dbName := s.getFlags(r, zs)
+
+		// Handle SBOM if provided
+		var sbomFilename string
+		if len(sbom) > 0 && len(scanType) > 0 {
+			if scanType != "identify" && scanType != "blacklist" {
+				zs.Errorf("Invalid SBOM type: %v", scanType)
+				http.Error(w, "ERROR invalid SBOM 'type' supplied", http.StatusBadRequest)
+				return
+			}
+			tempFile, err := s.writeSbomFile(sbom, zs)
+			if err != nil {
+				http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
+				return
+			}
+			if s.config.Scanning.TmpFileDelete {
+				defer removeFile(tempFile, zs)
+			}
+			sbomFilename = tempFile.Name()
+			zs.Debugf("Stored SBOM (%v) in %v", scanType, sbomFilename)
+		}
+
+		// Parse and validate WFP
+		wfps := strings.Split(string(contentsTrimmed), "file=")
+		wfpCount := int64(len(wfps) - 1)
+		if wfpCount <= 0 {
+			zs.Errorf("No WFP (file=...) entries found to scan in session %v", sessionID)
+			http.Error(w, "ERROR no WFP file contents (file=...) supplied", http.StatusBadRequest)
+			setSpanError(span, "No WFP (file=...) entries found.")
+			return
+		}
+
+		if !s.validateHPSM(contentsTrimmed, zs, w) {
+			setSpanError(span, "HPSM disabled.")
+			return
+		}
+
+		s.countScanSize(wfps, wfpCount, zs, logContext, span)
+
+		// Execute scan (single or multi-threaded)
+		if s.config.Scanning.Workers <= 1 {
+			s.singleScan(string(contentsTrimmed), flags, scanType, sbomFilename, dbName, zs, w)
+		} else {
+			s.scanThreaded(wfps, int(wfpCount), flags, scanType, sbomFilename, dbName, zs, w, span)
+		}
+
+		// Record metrics for elapsed time
+		elapsedTime := time.Since(requestStartTime).Milliseconds()
+		if s.config.Telemetry.Enabled {
+			elapsedTimeSeconds := float64(elapsedTime) / 1000.0
+			oltpMetrics.scanHistogram.Record(logContext, elapsedTime)
+			oltpMetrics.scanHistogramSec.Record(logContext, elapsedTimeSeconds)
+			var fileScanTime int64
+			if wfpCount > 0 {
+				fileScanTime = elapsedTime / wfpCount
+				oltpMetrics.scanFileHistogram.Record(logContext, fileScanTime)
+				oltpMetrics.scanFileHistogramSec.Record(logContext, elapsedTimeSeconds/float64(wfpCount))
+			}
+			if s.config.App.Trace {
+				zs.Debugf("Batch scan stats: session: %v, files: %v, scan_time: %v, file_time: %v", sessionID, wfpCount, elapsedTime, fileScanTime)
+			}
+		}
+	} else {
+		// Not the final chunk, return 202 Accepted
+		w.WriteHeader(http.StatusAccepted)
+		w.Header().Set(ContentTypeKey, ApplicationJSON)
+		printResponse(w, fmt.Sprintf("{\"message\":\"Chunk received for session %s\"}\n", sessionID), zs, false)
+	}
+}
+
+// appendWfpChunk appends a WFP chunk to the session-specific WFP file with proper locking.
+func (s APIService) appendWfpChunk(sessionID, filePath string, chunk []byte, zs *zap.SugaredLogger) error {
+	// Get session-specific lock to prevent concurrent writes
+	lock := sessionLocks.getSessionLock(sessionID)
+	lock.Lock()
+	defer lock.Unlock()
+
+	// Open file in append mode (create if doesn't exist)
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		zs.Errorf("Failed to open session file %v: %v", filePath, err)
+		return fmt.Errorf("failed to open session file: %w", err)
+	}
+	defer closeFile(file, zs)
+
+	// Append chunk with newline
+	if _, err := file.Write(chunk); err != nil {
+		zs.Errorf("Failed to write to session file %v: %v", filePath, err)
+		return fmt.Errorf("failed to write to session file: %w", err)
+	}
+
+	// Add newline if chunk doesn't end with one
+	if len(chunk) > 0 && chunk[len(chunk)-1] != '\n' {
+		if _, err := file.WriteString("\n"); err != nil {
+			zs.Errorf("Failed to write newline to session file %v: %v", filePath, err)
+			return fmt.Errorf("failed to write newline: %w", err)
+		}
+	}
+
+	zs.Debugf("Successfully appended %v bytes to session file %v", len(chunk), filePath)
+	return nil
 }
 
 // scanDirect handles WFP scanning requests from a client.
