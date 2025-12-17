@@ -19,6 +19,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -37,6 +38,15 @@ import (
 )
 
 var fileRegex = regexp.MustCompile(`^\w+,(\d+),.+`) // regex to parse file size from request
+
+// ScanSettings represents the scanning parameters that can be configured
+type ScanSettings struct {
+	RankingEnabled   *bool `json:"ranking_enabled,omitempty"`
+	RankingThreshold *int  `json:"ranking_threshold,omitempty"`
+	MinSnippetHits   *int  `json:"min_snippet_hits,omitempty"`
+	MinSnippetLines  *int  `json:"min_snippet_lines,omitempty"`
+	HonourFileExts   *bool `json:"honour_file_exts,omitempty"`
+}
 
 // ScanDirect handles WFP scanning requests from a client.
 func (s APIService) ScanDirect(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +96,7 @@ func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.S
 		setSpanError(span, "No WFP contents supplied")
 		return 0
 	}
-	flags, scanType, sbom, dbName := s.getFlags(r, zs)
+	flags, scanType, sbom, dbName, scanSettings := s.getFlags(r, zs)
 	// Check if we have an SBOM (and type) supplied
 	var sbomFilename string
 	if len(sbom) > 0 && len(scanType) > 0 {
@@ -121,9 +131,9 @@ func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.S
 	s.countScanSize(wfps, wfpCount, zs, context, span)
 	// Only one worker selected, so send the whole WFP in a single command
 	if s.config.Scanning.Workers <= 1 {
-		s.singleScan(string(contentsTrimmed), flags, scanType, sbomFilename, dbName, zs, w)
+		s.singleScan(string(contentsTrimmed), flags, scanType, sbomFilename, dbName, scanSettings, zs, w)
 	} else {
-		s.scanThreaded(wfps, int(wfpCount), flags, scanType, sbomFilename, dbName, zs, w, span)
+		s.scanThreaded(wfps, int(wfpCount), flags, scanType, sbomFilename, dbName, scanSettings, zs, w, span)
 	}
 	return wfpCount
 }
@@ -155,11 +165,12 @@ func (s APIService) countScanSize(wfps []string, wfpCount int64, zs *zap.Sugared
 }
 
 // getFlags extracts the form values from a request returns the flags, scan type, and sbom data if detected.
-func (s APIService) getFlags(r *http.Request, zs *zap.SugaredLogger) (string, string, string, string) {
-	flags := strings.TrimSpace(r.FormValue("flags"))    // Check form for Scanning flags
-	scanType := strings.TrimSpace(r.FormValue("type"))  // Check form for SBOM type
-	sbom := strings.TrimSpace(r.FormValue("assets"))    // Check form for SBOM contents
-	dbName := strings.TrimSpace(r.FormValue("db_name")) // Check form for db name
+func (s APIService) getFlags(r *http.Request, zs *zap.SugaredLogger) (string, string, string, string, string) {
+	flags := strings.TrimSpace(r.FormValue("flags"))                          // Check form for Scanning flags
+	scanType := strings.TrimSpace(r.FormValue("type"))                        // Check form for SBOM type
+	sbom := strings.TrimSpace(r.FormValue("assets"))                          // Check form for SBOM contents
+	dbName := strings.TrimSpace(r.FormValue("db_name"))                       // Check form for db name
+	scanSettings := strings.TrimSpace(r.FormValue("x-scanoss-scan-settings")) // Check form for scan settings
 	// TODO is it necessary to check the header also for these values?
 	if len(flags) == 0 {
 		flags = strings.TrimSpace(r.Header.Get("flags")) // Check header for Scanning flags
@@ -173,10 +184,13 @@ func (s APIService) getFlags(r *http.Request, zs *zap.SugaredLogger) (string, st
 	if len(dbName) == 0 {
 		dbName = strings.TrimSpace(r.Header.Get("db_name")) // Check header for SBOM contents
 	}
+	if len(scanSettings) == 0 {
+		scanSettings = strings.TrimSpace(r.Header.Get("x-scanoss-scan-settings")) // Check header for scan settings
+	}
 	if s.config.App.Trace {
 		zs.Debugf("Header: %v, Form: %v, flags: %v, type: %v, assets: %v, db_name %v", r.Header, r.Form, flags, scanType, sbom, dbName)
 	}
-	return flags, scanType, sbom, dbName
+	return flags, scanType, sbom, dbName, scanSettings
 }
 
 // writeSbomFile writes the given string into an SBOM temporary file.
@@ -196,9 +210,9 @@ func (s APIService) writeSbomFile(sbom string, zs *zap.SugaredLogger) (*os.File,
 }
 
 // singleScan runs a scan of the WFP in a single thread.
-func (s APIService) singleScan(wfp, flags, sbomType, sbomFile, dbName string, zs *zap.SugaredLogger, w http.ResponseWriter) {
+func (s APIService) singleScan(wfp, flags, sbomType, sbomFile, dbName, scanSettings string, zs *zap.SugaredLogger, w http.ResponseWriter) {
 	zs.Debugf("Single threaded scan...")
-	result, err := s.scanWfp(wfp, flags, sbomType, sbomFile, dbName, zs)
+	result, err := s.scanWfp(wfp, flags, sbomType, sbomFile, dbName, scanSettings, zs)
 	if err != nil {
 		zs.Errorf("Engine scan failed: %v", err)
 		http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
@@ -216,7 +230,7 @@ func (s APIService) singleScan(wfp, flags, sbomType, sbomFile, dbName string, zs
 }
 
 // scanThreaded scan the given WFPs in multiple threads.
-func (s APIService) scanThreaded(wfps []string, wfpCount int, flags, sbomType, sbomFile, dbName string, zs *zap.SugaredLogger, w http.ResponseWriter, span oteltrace.Span) {
+func (s APIService) scanThreaded(wfps []string, wfpCount int, flags, sbomType, sbomFile, dbName, scanSettings string, zs *zap.SugaredLogger, w http.ResponseWriter, span oteltrace.Span) {
 	addSpanEvent(span, "Started Scanning.")
 	numWorkers := s.config.Scanning.Workers
 	groupedWfps := wfpCount / s.config.Scanning.WfpGrouping
@@ -233,7 +247,7 @@ func (s APIService) scanThreaded(wfps []string, wfpCount int, flags, sbomType, s
 	zs.Debugf("Creating %v scanning workers...", numWorkers)
 	// Create workers
 	for i := 1; i <= numWorkers; i++ {
-		go s.workerScan(fmt.Sprintf("%d_%s", i, uuid.New().String()), requests, results, flags, sbomType, sbomFile, dbName, zs)
+		go s.workerScan(fmt.Sprintf("%d_%s", i, uuid.New().String()), requests, results, flags, sbomType, sbomFile, dbName, scanSettings, zs)
 	}
 	requestCount := 0 // Count the number of actual requests sent
 	var wfpRequests []string
@@ -308,7 +322,7 @@ func (s APIService) validateHPSM(contents []byte, zs *zap.SugaredLogger, w http.
 }
 
 // workerScan attempts to process all incoming scanning jobs and dumps the results into the subsequent results channel.
-func (s APIService) workerScan(id string, jobs <-chan string, results chan<- string, flags, sbomType, sbomFile, dbName string, zs *zap.SugaredLogger) {
+func (s APIService) workerScan(id string, jobs <-chan string, results chan<- string, flags, sbomType, sbomFile, dbName, scanSettings string, zs *zap.SugaredLogger) {
 	if s.config.App.Trace {
 		zs.Debugf("Starting up scanning worker: %v", id)
 	}
@@ -322,7 +336,7 @@ func (s APIService) workerScan(id string, jobs <-chan string, results chan<- str
 			zs.Warnf("Nothing in the job request to scan. Ignoring")
 			results <- ""
 		} else {
-			result, err := s.scanWfp(job, flags, sbomType, sbomFile, dbName, zs)
+			result, err := s.scanWfp(job, flags, sbomType, sbomFile, dbName, scanSettings, zs)
 			if s.config.App.Trace {
 				zs.Debugf("scan result (%v): %v, %v", id, result, err)
 			}
@@ -347,7 +361,7 @@ func (s APIService) workerScan(id string, jobs <-chan string, results chan<- str
 }
 
 // scanWfp run the scanoss engine scan of the supplied WFP.
-func (s APIService) scanWfp(wfp, flags, sbomType, sbomFile, dbName string, zs *zap.SugaredLogger) (string, error) {
+func (s APIService) scanWfp(wfp, flags, sbomType, sbomFile, dbName, scanSettings string, zs *zap.SugaredLogger) (string, error) {
 	if len(wfp) == 0 {
 		zs.Warnf("Nothing in the job request to scan. Ignoring")
 		return "", fmt.Errorf("no wfp supplied to scan. ignoring")
@@ -392,6 +406,33 @@ func (s APIService) scanWfp(wfp, flags, sbomType, sbomFile, dbName string, zs *z
 		}
 		args = append(args, sbomFile)
 	}
+	if len(scanSettings) > 0 {
+		var settings ScanSettings
+		err := json.Unmarshal([]byte(scanSettings), &settings)
+		if err != nil {
+			zs.Warnf("Failed to parse scan settings JSON: %v - %v", err, scanSettings)
+		} else {
+			// Apply scan settings to the command arguments
+			if settings.RankingEnabled != nil {
+				if *settings.RankingEnabled {
+					// enable ranking
+				}
+			}
+			if settings.RankingThreshold != nil {
+				args = append(args, fmt.Sprintf("-r%d", *settings.RankingThreshold))
+			}
+			if settings.MinSnippetHits != nil {
+				args = append(args, fmt.Sprintf("--min-snippet-hits%d", *settings.MinSnippetHits))
+			}
+			if settings.MinSnippetLines != nil {
+				args = append(args, fmt.Sprintf("--min-snippet-lines%d", *settings.MinSnippetLines))
+			}
+			if settings.HonourFileExts != nil {
+				//do something
+			}
+		}
+	}
+
 	args = append(args, "-w", tempFile.Name())
 	zs.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.config.Scanning.ScanTimeout)*time.Second) // put a timeout on the scan execution

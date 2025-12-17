@@ -70,6 +70,14 @@ type ServerConfig struct {
 		FileContents    bool   `env:"SCANOSS_FILE_CONTENTS"`     // Show matched file URL in scan results (default true)
 		FileContentsURL string `env:"SCANOSS_FILE_CONTENTS_URL"` // Explicit file contents URL to use for the engine
 		LoadKbDetails   bool   `env:"SCANOSS_LOAD_KB_DETAILS"`   // Load the version of the KB into the service for reporting
+		//component selection
+		RankingAllowed   bool `env:"SCANOSS_RANKING_ALLOWED"`   // Allow ranking to be used in scan results
+		RankingEnabled   bool `env:"SCANOSS_RANKING_ENABLED"`   // Enable ranking in scan results
+		RankingThreshold int  `env:"SCANOSS_RANKING_THRESHOLD"` // Ranking threshold to use
+		//snippet matching
+		MinSnippetHits  int  `env:"SCANOSS_MIN_SNIPPET_HITS"`  // Minimum snippet hits to consider a snippet match
+		MinSnippetLines int  `env:"SCANOSS_MIN_SNIPPET_LINES"` // Minimum snippet lines to consider a snippet match
+		HonourFileExts  bool `env:"SCANOSS_HONOUR_FILE_EXTS"`  // Honour file extensions to filter snippet matches
 	}
 	TLS struct {
 		CertFile string `env:"SCAN_TLS_CERT"`   // TLS Certificate
@@ -120,6 +128,14 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Telemetry.OltpExporter = "0.0.0.0:4317" // Default OTEL OLTP gRPC Exporter endpoint
 	cfg.Scanning.FileContents = true            // Matched File URL response enabled (true) by default
 	cfg.Scanning.LoadKbDetails = true           // Load the KB details on a scheduler
+	//component selection
+	cfg.Scanning.RankingAllowed = true  // Allow ranking to be used in scan results
+	cfg.Scanning.RankingEnabled = false // Disable ranking in scan results by default
+	cfg.Scanning.RankingThreshold = 0   // Ranking threshold default (everything is accepted)
+	//snippet matching
+	cfg.Scanning.MinSnippetHits = 0  //Lets then engine decide on minimum snippet hits based on the file total lines
+	cfg.Scanning.MinSnippetLines = 0 //Lets then engine decide on minimum snippet hits on the file total lines
+	cfg.Scanning.HonourFileExts = true
 }
 
 // LoadFile loads the specified file and returns its contents in a string array.
