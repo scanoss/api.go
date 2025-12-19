@@ -85,7 +85,8 @@ func (s APIService) loadKBDetails() {
 		engineVersion = "unknown"
 	}
 	// Load a random (hopefully non-existent) file match to extract the KB version details
-	result, err := s.scanWfp("file=7c53a2de7dfeaa20d057db98468d6670,2321,path/to/dummy/file.txt", "", "", "", "", zs)
+	emptyConfig := DefaultScanningServiceConfig(s.config)
+	result, err := s.scanWfp("file=7c53a2de7dfeaa20d057db98468d6670,2321,path/to/dummy/file.txt", "", emptyConfig, zs)
 	if err != nil {
 		zs.Warnf("Failed to detect KB version from eninge: %v", err)
 		return
