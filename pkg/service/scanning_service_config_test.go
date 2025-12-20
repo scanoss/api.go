@@ -37,61 +37,29 @@ func TestDefaultScanningServiceConfig(t *testing.T) {
 
 	config := DefaultScanningServiceConfig(serverConfig)
 
-	if config.Flags != 42 {
-		t.Errorf("Expected Flags to be 42, got %d", config.Flags)
+	if config.flags != 42 {
+		t.Errorf("Expected Flags to be 42, got %d", config.flags)
 	}
-	if config.DbName != "test-kb" {
-		t.Errorf("Expected DbName to be 'test-kb', got '%s'", config.DbName)
+	if config.dbName != "test-kb" {
+		t.Errorf("Expected DbName to be 'test-kb', got '%s'", config.dbName)
 	}
-	if !config.RankingAllowed {
+	if !config.rankingAllowed {
 		t.Error("Expected RankingAllowed to be true")
 	}
-	if config.RankingEnabled {
+	if config.rankingEnabled {
 		t.Error("Expected RankingEnabled to be false")
 	}
-	if config.RankingThreshold != 50 {
-		t.Errorf("Expected RankingThreshold to be 50, got %d", config.RankingThreshold)
+	if config.rankingThreshold != 50 {
+		t.Errorf("Expected RankingThreshold to be 50, got %d", config.rankingThreshold)
 	}
-	if config.MinSnippetHits != 10 {
-		t.Errorf("Expected MinSnippetHits to be 10, got %d", config.MinSnippetHits)
+	if config.minSnippetHits != 10 {
+		t.Errorf("Expected MinSnippetHits to be 10, got %d", config.minSnippetHits)
 	}
-	if config.MinSnippetLines != 5 {
-		t.Errorf("Expected MinSnippetLines to be 5, got %d", config.MinSnippetLines)
+	if config.minSnippetLines != 5 {
+		t.Errorf("Expected MinSnippetLines to be 5, got %d", config.minSnippetLines)
 	}
-	if !config.HonourFileExts {
+	if !config.honourFileExts {
 		t.Error("Expected HonourFileExts to be true")
-	}
-	if config.SbomType != "" {
-		t.Errorf("Expected SbomType to be empty, got '%s'", config.SbomType)
-	}
-	if config.SbomFile != "" {
-		t.Errorf("Expected SbomFile to be empty, got '%s'", config.SbomFile)
-	}
-}
-
-// TestUpdateScanningServiceConfigDTO_EmptyInput tests that empty input doesn't change config
-func TestUpdateScanningServiceConfigDTO_EmptyInput(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-	sugar := logger.Sugar()
-
-	baseConfig := ScanningServiceConfig{
-		Flags:            42,
-		DbName:           "original-db",
-		RankingAllowed:   true,
-		RankingEnabled:   false,
-		RankingThreshold: 50,
-		MinSnippetHits:   10,
-		MinSnippetLines:  5,
-		HonourFileExts:   true,
-	}
-
-	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", nil)
-
-	if result.Flags != 42 {
-		t.Errorf("Expected Flags to remain 42, got %d", result.Flags)
-	}
-	if result.DbName != "original-db" {
-		t.Errorf("Expected DbName to remain 'original-db', got '%s'", result.DbName)
 	}
 }
 
@@ -101,15 +69,15 @@ func TestUpdateScanningServiceConfigDTO_JSONSettings(t *testing.T) {
 	sugar := logger.Sugar()
 
 	baseConfig := ScanningServiceConfig{
-		RankingAllowed:   true,
-		RankingEnabled:   false,
-		RankingThreshold: 0,
-		MinSnippetHits:   0,
-		MinSnippetLines:  0,
-		HonourFileExts:   false,
+		rankingAllowed:   true,
+		rankingEnabled:   false,
+		rankingThreshold: 0,
+		minSnippetHits:   0,
+		minSnippetLines:  0,
+		honourFileExts:   false,
 	}
 
-	// Create JSON input
+	// Test with multiple JSON settings
 	rankingEnabled := true
 	rankingThreshold := 75
 	minSnippetHits := 20
@@ -137,19 +105,19 @@ func TestUpdateScanningServiceConfigDTO_JSONSettings(t *testing.T) {
 
 	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
 
-	if !result.RankingEnabled {
+	if !result.rankingEnabled {
 		t.Error("Expected RankingEnabled to be true")
 	}
-	if result.RankingThreshold != 75 {
-		t.Errorf("Expected RankingThreshold to be 75, got %d", result.RankingThreshold)
+	if result.rankingThreshold != 75 {
+		t.Errorf("Expected RankingThreshold to be 75, got %d", result.rankingThreshold)
 	}
-	if result.MinSnippetHits != 20 {
-		t.Errorf("Expected MinSnippetHits to be 20, got %d", result.MinSnippetHits)
+	if result.minSnippetHits != 20 {
+		t.Errorf("Expected MinSnippetHits to be 20, got %d", result.minSnippetHits)
 	}
-	if result.MinSnippetLines != 15 {
-		t.Errorf("Expected MinSnippetLines to be 15, got %d", result.MinSnippetLines)
+	if result.minSnippetLines != 15 {
+		t.Errorf("Expected MinSnippetLines to be 15, got %d", result.minSnippetLines)
 	}
-	if !result.HonourFileExts {
+	if !result.honourFileExts {
 		t.Error("Expected HonourFileExts to be true")
 	}
 }
@@ -160,9 +128,9 @@ func TestUpdateScanningServiceConfigDTO_RankingNotAllowed(t *testing.T) {
 	sugar := logger.Sugar()
 
 	baseConfig := ScanningServiceConfig{
-		RankingAllowed:   false, // Ranking not allowed
-		RankingEnabled:   false,
-		RankingThreshold: 0,
+		rankingAllowed:   false, // Ranking not allowed
+		rankingEnabled:   false,
+		rankingThreshold: 0,
 	}
 
 	// Try to enable ranking
@@ -185,24 +153,24 @@ func TestUpdateScanningServiceConfigDTO_RankingNotAllowed(t *testing.T) {
 	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
 
 	// Should remain false because RankingAllowed is false
-	if result.RankingEnabled {
+	if result.rankingEnabled {
 		t.Error("Expected RankingEnabled to remain false when RankingAllowed is false")
 	}
-	if result.RankingThreshold != 0 {
-		t.Errorf("Expected RankingThreshold to remain 0 when RankingAllowed is false, got %d", result.RankingThreshold)
+	if result.rankingThreshold != 0 {
+		t.Errorf("Expected RankingThreshold to remain 0 when RankingAllowed is false, got %d", result.rankingThreshold)
 	}
 }
 
-// TestUpdateScanningServiceConfigDTO_StringParameters tests updating string parameters
-func TestUpdateScanningServiceConfigDTO_StringParameters(t *testing.T) {
+// TestUpdateScanningServiceConfigDTO_LegacyParameters tests updating legacy string parameters
+func TestUpdateScanningServiceConfigDTO_LegacyParameters(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	sugar := logger.Sugar()
 
 	baseConfig := ScanningServiceConfig{
-		Flags:    0,
-		DbName:   "default-db",
-		SbomType: "",
-		SbomFile: "",
+		flags:    0,
+		dbName:   "default-db",
+		sbomType: "",
+		sbomFile: "",
 	}
 
 	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig,
@@ -212,130 +180,74 @@ func TestUpdateScanningServiceConfigDTO_StringParameters(t *testing.T) {
 		"custom-db",   // dbName
 		nil)
 
-	if result.Flags != 123 {
-		t.Errorf("Expected Flags to be 123, got %d", result.Flags)
+	if result.flags != 123 {
+		t.Errorf("Expected Flags to be 123, got %d", result.flags)
 	}
-	if result.DbName != "custom-db" {
-		t.Errorf("Expected DbName to be 'custom-db', got '%s'", result.DbName)
+	if result.dbName != "custom-db" {
+		t.Errorf("Expected DbName to be 'custom-db', got '%s'", result.dbName)
 	}
-	if result.SbomType != "identify" {
-		t.Errorf("Expected SbomType to be 'identify', got '%s'", result.SbomType)
+	if result.sbomType != "identify" {
+		t.Errorf("Expected SbomType to be 'identify', got '%s'", result.sbomType)
 	}
-	if result.SbomFile != "assets.json" {
-		t.Errorf("Expected SbomFile to be 'assets.json', got '%s'", result.SbomFile)
+	if result.sbomFile != "assets.json" {
+		t.Errorf("Expected SbomFile to be 'assets.json', got '%s'", result.sbomFile)
 	}
 }
 
-// TestUpdateScanningServiceConfigDTO_InvalidFlags tests handling of invalid flags
-func TestUpdateScanningServiceConfigDTO_InvalidFlags(t *testing.T) {
+// TestUpdateScanningServiceConfigDTO_InvalidInput tests handling of invalid input
+func TestUpdateScanningServiceConfigDTO_InvalidInput(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	sugar := logger.Sugar()
 
 	baseConfig := ScanningServiceConfig{
-		Flags: 42,
+		flags:          42,
+		minSnippetHits: 10,
 	}
 
+	// Test with invalid flags
 	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig,
-		"not-a-number", // invalid flags
-		"", "", "", nil)
+		"not-a-number", "", "", "", nil)
 
-	// Should remain unchanged because conversion failed
-	if result.Flags != 42 {
-		t.Errorf("Expected Flags to remain 42 after invalid conversion, got %d", result.Flags)
-	}
-}
-
-// TestUpdateScanningServiceConfigDTO_InvalidJSON tests handling of invalid JSON
-func TestUpdateScanningServiceConfigDTO_InvalidJSON(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-	sugar := logger.Sugar()
-
-	baseConfig := ScanningServiceConfig{
-		MinSnippetHits: 10,
+	if result.flags != 42 {
+		t.Errorf("Expected Flags to remain 42 after invalid conversion, got %d", result.flags)
 	}
 
+	// Test with invalid JSON
 	invalidJSON := []byte("{invalid json}")
+	result = UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", invalidJSON)
 
-	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", invalidJSON)
-
-	// Should remain unchanged because JSON parsing failed
-	if result.MinSnippetHits != 10 {
-		t.Errorf("Expected MinSnippetHits to remain 10 after invalid JSON, got %d", result.MinSnippetHits)
+	if result.minSnippetHits != 10 {
+		t.Errorf("Expected MinSnippetHits to remain 10 after invalid JSON, got %d", result.minSnippetHits)
 	}
 }
 
-// TestUpdateScanningServiceConfigDTO_PartialUpdate tests updating only some fields
-func TestUpdateScanningServiceConfigDTO_PartialUpdate(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-	sugar := logger.Sugar()
-
-	baseConfig := ScanningServiceConfig{
-		RankingAllowed:   true,
-		RankingEnabled:   false,
-		RankingThreshold: 50,
-		MinSnippetHits:   10,
-		MinSnippetLines:  5,
-		HonourFileExts:   false,
-	}
-
-	// Only update MinSnippetHits
-	minSnippetHits := 25
-	settings := struct {
-		MinSnippetHits *int `json:"min_snippet_hits,omitempty"`
-	}{
-		MinSnippetHits: &minSnippetHits,
-	}
-
-	jsonBytes, err := json.Marshal(settings)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
-
-	// MinSnippetHits should be updated
-	if result.MinSnippetHits != 25 {
-		t.Errorf("Expected MinSnippetHits to be 25, got %d", result.MinSnippetHits)
-	}
-
-	// Other fields should remain unchanged
-	if result.RankingEnabled {
-		t.Error("Expected RankingEnabled to remain false")
-	}
-	if result.RankingThreshold != 50 {
-		t.Errorf("Expected RankingThreshold to remain 50, got %d", result.RankingThreshold)
-	}
-	if result.MinSnippetLines != 5 {
-		t.Errorf("Expected MinSnippetLines to remain 5, got %d", result.MinSnippetLines)
-	}
-	if result.HonourFileExts {
-		t.Error("Expected HonourFileExts to remain false")
-	}
-}
-
-// TestUpdateScanningServiceConfigDTO_CombinedUpdate tests updating both JSON and string parameters
+// TestUpdateScanningServiceConfigDTO_CombinedUpdate tests updating both JSON and legacy parameters together
 func TestUpdateScanningServiceConfigDTO_CombinedUpdate(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	sugar := logger.Sugar()
 
 	baseConfig := ScanningServiceConfig{
-		Flags:            0,
-		DbName:           "default-db",
-		RankingAllowed:   true,
-		RankingEnabled:   false,
-		RankingThreshold: 0,
-		MinSnippetHits:   0,
+		flags:            0,
+		dbName:           "default-db",
+		rankingAllowed:   true,
+		rankingEnabled:   false,
+		rankingThreshold: 0,
+		minSnippetHits:   0,
 	}
 
 	// JSON settings
 	rankingEnabled := true
 	rankingThreshold := 80
+	minSnippetHits := 5
+
 	settings := struct {
 		RankingEnabled   *bool `json:"ranking_enabled,omitempty"`
 		RankingThreshold *int  `json:"ranking_threshold,omitempty"`
+		MinSnippetHits   *int  `json:"min_snippet_hits,omitempty"`
 	}{
 		RankingEnabled:   &rankingEnabled,
 		RankingThreshold: &rankingThreshold,
+		MinSnippetHits:   &minSnippetHits,
 	}
 
 	jsonBytes, err := json.Marshal(settings)
@@ -344,88 +256,31 @@ func TestUpdateScanningServiceConfigDTO_CombinedUpdate(t *testing.T) {
 	}
 
 	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig,
-		"256",        // flags
-		"blacklist",  // scanType
-		"",           // sbom
-		"prod-db",    // dbName
+		"256",       // flags
+		"blacklist", // scanType
+		"",          // sbom
+		"prod-db",   // dbName
 		jsonBytes)
 
 	// Check JSON settings were applied
-	if !result.RankingEnabled {
+	if !result.rankingEnabled {
 		t.Error("Expected RankingEnabled to be true")
 	}
-	if result.RankingThreshold != 80 {
-		t.Errorf("Expected RankingThreshold to be 80, got %d", result.RankingThreshold)
+	if result.rankingThreshold != 80 {
+		t.Errorf("Expected RankingThreshold to be 80, got %d", result.rankingThreshold)
+	}
+	if result.minSnippetHits != 5 {
+		t.Errorf("Expected MinSnippetHits to be 5, got %d", result.minSnippetHits)
 	}
 
-	// Check string parameters were applied
-	if result.Flags != 256 {
-		t.Errorf("Expected Flags to be 256, got %d", result.Flags)
+	// Check legacy string parameters were applied
+	if result.flags != 256 {
+		t.Errorf("Expected Flags to be 256, got %d", result.flags)
 	}
-	if result.DbName != "prod-db" {
-		t.Errorf("Expected DbName to be 'prod-db', got '%s'", result.DbName)
+	if result.dbName != "prod-db" {
+		t.Errorf("Expected DbName to be 'prod-db', got '%s'", result.dbName)
 	}
-	if result.SbomType != "blacklist" {
-		t.Errorf("Expected SbomType to be 'blacklist', got '%s'", result.SbomType)
-	}
-}
-
-// TestUpdateScanningServiceConfigDTO_ZeroValues tests that zero values can be set
-func TestUpdateScanningServiceConfigDTO_ZeroValues(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-	sugar := logger.Sugar()
-
-	baseConfig := ScanningServiceConfig{
-		RankingAllowed:   true,
-		RankingEnabled:   true,
-		RankingThreshold: 50,
-		MinSnippetHits:   10,
-		MinSnippetLines:  5,
-		HonourFileExts:   true,
-	}
-
-	// Set values to zero/false
-	rankingEnabled := false
-	rankingThreshold := 0
-	minSnippetHits := 0
-	minSnippetLines := 0
-	honourFileExts := false
-
-	settings := struct {
-		RankingEnabled   *bool `json:"ranking_enabled,omitempty"`
-		RankingThreshold *int  `json:"ranking_threshold,omitempty"`
-		MinSnippetHits   *int  `json:"min_snippet_hits,omitempty"`
-		MinSnippetLines  *int  `json:"min_snippet_lines,omitempty"`
-		HonourFileExts   *bool `json:"honour_file_exts,omitempty"`
-	}{
-		RankingEnabled:   &rankingEnabled,
-		RankingThreshold: &rankingThreshold,
-		MinSnippetHits:   &minSnippetHits,
-		MinSnippetLines:  &minSnippetLines,
-		HonourFileExts:   &honourFileExts,
-	}
-
-	jsonBytes, err := json.Marshal(settings)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
-
-	// All values should be updated to zero/false
-	if result.RankingEnabled {
-		t.Error("Expected RankingEnabled to be false")
-	}
-	if result.RankingThreshold != 0 {
-		t.Errorf("Expected RankingThreshold to be 0, got %d", result.RankingThreshold)
-	}
-	if result.MinSnippetHits != 0 {
-		t.Errorf("Expected MinSnippetHits to be 0, got %d", result.MinSnippetHits)
-	}
-	if result.MinSnippetLines != 0 {
-		t.Errorf("Expected MinSnippetLines to be 0, got %d", result.MinSnippetLines)
-	}
-	if result.HonourFileExts {
-		t.Error("Expected HonourFileExts to be false")
+	if result.sbomType != "blacklist" {
+		t.Errorf("Expected SbomType to be 'blacklist', got '%s'", result.sbomType)
 	}
 }

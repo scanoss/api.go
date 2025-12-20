@@ -90,13 +90,13 @@ func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.S
 	scanConfig := s.getConfigFromRequest(r, zs)
 	// Check if we have an SBOM (and type) supplied
 	var sbomFilename string
-	if len(scanConfig.SbomFile) > 0 && len(scanConfig.SbomType) > 0 {
-		if scanConfig.SbomType != "identify" && scanConfig.SbomType != "blacklist" { // Make sure we have a valid SBOM scan type
-			zs.Errorf("Invalid SBOM type: %v", scanConfig.SbomType)
+	if len(scanConfig.sbomFile) > 0 && len(scanConfig.sbomType) > 0 {
+		if scanConfig.sbomType != "identify" && scanConfig.sbomType != "blacklist" { // Make sure we have a valid SBOM scan type
+			zs.Errorf("Invalid SBOM type: %v", scanConfig.sbomType)
 			http.Error(w, "ERROR invalid SBOM 'type' supplied", http.StatusBadRequest)
 			return 0
 		}
-		tempFile, err := s.writeSbomFile(scanConfig.SbomFile, zs)
+		tempFile, err := s.writeSbomFile(scanConfig.sbomFile, zs)
 		if err != nil {
 			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 			return 0
@@ -105,7 +105,7 @@ func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.S
 			defer removeFile(tempFile, zs)
 		}
 		sbomFilename = tempFile.Name() // Save the SBOM filename
-		zs.Debugf("Stored SBOM (%v) in %v", scanConfig.SbomType, sbomFilename)
+		zs.Debugf("Stored SBOM (%v) in %v", scanConfig.sbomType, sbomFilename)
 	}
 	wfps := strings.Split(string(contentsTrimmed), "file=")
 	wfpCount := int64(len(wfps) - 1) // First entry in the array is empty (hence the -1)
@@ -400,18 +400,18 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	}
 
 	// Database name
-	if len(config.DbName) > 0 {
-		args = append(args, fmt.Sprintf("-n%s", config.DbName))
+	if len(config.dbName) > 0 {
+		args = append(args, fmt.Sprintf("-n%s", config.dbName))
 	}
 
 	// Scanning flags
-	if config.Flags > 0 {
-		args = append(args, fmt.Sprintf("-F %v", config.Flags))
+	if config.flags > 0 {
+		args = append(args, fmt.Sprintf("-F %v", config.flags))
 	}
 
 	// SBOM configuration
-	if len(sbomFile) > 0 && len(config.SbomType) > 0 {
-		switch config.SbomType {
+	if len(sbomFile) > 0 && len(config.sbomType) > 0 {
+		switch config.sbomType {
 		case "identify":
 			args = append(args, "-s")
 		case "blacklist":
@@ -423,23 +423,23 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	}
 
 	// Ranking threshold (only if ranking is enabled and allowed)
-	if config.RankingEnabled {
-		args = append(args, fmt.Sprintf("-r%d", config.RankingThreshold))
+	if config.rankingEnabled {
+		args = append(args, fmt.Sprintf("-r%d", config.rankingThreshold))
 	}
 
 	// Minimum snippet hits
-	if config.MinSnippetHits > 0 {
-		args = append(args, fmt.Sprintf("--min-snippet-hits=%d", config.MinSnippetHits))
+	if config.minSnippetHits > 0 {
+		args = append(args, fmt.Sprintf("--min-snippet-hits=%d", config.minSnippetHits))
 	}
 
 	// Minimum snippet lines
-	if config.MinSnippetLines > 0 {
-		args = append(args, fmt.Sprintf("--min-snippet-lines=%d", config.MinSnippetLines))
+	if config.minSnippetLines > 0 {
+		args = append(args, fmt.Sprintf("--min-snippet-lines=%d", config.minSnippetLines))
 	}
 
 	// Honour file extensions (not yet implemented in scanoss engine)
-	if config.HonourFileExts {
-		zs.Debugf("HonourFileExts enabled: %v (flag not yet implemented in engine)", config.HonourFileExts)
+	if config.honourFileExts {
+		zs.Debugf("HonourFileExts enabled: %v (flag not yet implemented in engine)", config.honourFileExts)
 	}
 
 	args = append(args, "-w", tempFile.Name())

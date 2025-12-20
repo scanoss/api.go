@@ -24,30 +24,30 @@ import (
 )
 
 type ScanningServiceConfig struct {
-	Flags            int    `json:"scan_flags"` // Additional flags to pass to the scanoss binary
-	SbomType         string `json:"sbom_type"`  // SBOM type to generate (spdx-json, cyclonedx-json, etc)
-	SbomFile         string `json:"sbom_file"`  // SBOM output file name
-	DbName           string `json:"db_name"`    // Database name to use
-	RankingAllowed   bool   `json:"ranking_allowed"`
-	RankingEnabled   bool   `json:"ranking_enabled"`
-	RankingThreshold int    `json:"ranking_threshold"`
-	MinSnippetHits   int    `json:"min_snippet_hits"`
-	MinSnippetLines  int    `json:"min_snippet_lines"`
-	HonourFileExts   bool   `json:"honour_file_exts"`
+	flags            int
+	sbomType         string
+	sbomFile         string
+	dbName           string
+	rankingAllowed   bool
+	rankingEnabled   bool
+	rankingThreshold int
+	minSnippetHits   int
+	minSnippetLines  int
+	honourFileExts   bool
 }
 
 func DefaultScanningServiceConfig(serverDefaultConfig *cfg.ServerConfig) ScanningServiceConfig {
 	return ScanningServiceConfig{
-		Flags:            serverDefaultConfig.Scanning.ScanFlags,
-		SbomType:         "",
-		SbomFile:         "",
-		DbName:           serverDefaultConfig.Scanning.ScanKbName,
-		RankingAllowed:   serverDefaultConfig.Scanning.RankingAllowed,
-		RankingEnabled:   serverDefaultConfig.Scanning.RankingEnabled,
-		RankingThreshold: serverDefaultConfig.Scanning.RankingThreshold,
-		MinSnippetHits:   serverDefaultConfig.Scanning.MinSnippetHits,
-		MinSnippetLines:  serverDefaultConfig.Scanning.MinSnippetLines,
-		HonourFileExts:   serverDefaultConfig.Scanning.HonourFileExts,
+		flags:            serverDefaultConfig.Scanning.ScanFlags,
+		sbomType:         "",
+		sbomFile:         "",
+		dbName:           serverDefaultConfig.Scanning.ScanKbName,
+		rankingAllowed:   serverDefaultConfig.Scanning.RankingAllowed,
+		rankingEnabled:   serverDefaultConfig.Scanning.RankingEnabled,
+		rankingThreshold: serverDefaultConfig.Scanning.RankingThreshold,
+		minSnippetHits:   serverDefaultConfig.Scanning.MinSnippetHits,
+		minSnippetLines:  serverDefaultConfig.Scanning.MinSnippetLines,
+		honourFileExts:   serverDefaultConfig.Scanning.HonourFileExts,
 	}
 }
 
@@ -71,35 +71,35 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 			return *currentConfig
 		}
 	}
-
-	if newSettings.RankingEnabled != nil && currentConfig.RankingAllowed {
-		currentConfig.RankingEnabled = *newSettings.RankingEnabled
-		s.Debugf("Updated RankingEnabled to %v", currentConfig.RankingEnabled)
+	//TODO add warning for rejecting settings when RankingAllowed is false
+	if newSettings.RankingEnabled != nil && currentConfig.rankingAllowed {
+		currentConfig.rankingEnabled = *newSettings.RankingEnabled
+		s.Debugf("Updated RankingEnabled to %v", currentConfig.rankingEnabled)
 	}
 
-	if newSettings.RankingThreshold != nil && currentConfig.RankingAllowed {
-		currentConfig.RankingThreshold = *newSettings.RankingThreshold
-		s.Debugf("Updated RankingThreshold to %d", currentConfig.RankingThreshold)
+	if newSettings.RankingThreshold != nil && currentConfig.rankingAllowed {
+		currentConfig.rankingThreshold = *newSettings.RankingThreshold
+		s.Debugf("Updated RankingThreshold to %d", currentConfig.rankingThreshold)
 	}
 
 	if newSettings.MinSnippetHits != nil {
-		currentConfig.MinSnippetHits = *newSettings.MinSnippetHits
-		s.Debugf("Updated MinSnippetHits to %d", currentConfig.MinSnippetHits)
+		currentConfig.minSnippetHits = *newSettings.MinSnippetHits
+		s.Debugf("Updated MinSnippetHits to %d", currentConfig.minSnippetHits)
 	}
 
 	if newSettings.MinSnippetLines != nil {
-		currentConfig.MinSnippetLines = *newSettings.MinSnippetLines
-		s.Debugf("Updated MinSnippetLines to %d", currentConfig.MinSnippetLines)
+		currentConfig.minSnippetLines = *newSettings.MinSnippetLines
+		s.Debugf("Updated MinSnippetLines to %d", currentConfig.minSnippetLines)
 	}
 
 	if newSettings.HonourFileExts != nil {
-		currentConfig.HonourFileExts = *newSettings.HonourFileExts
-		s.Debugf("Updated HonourFileExts to %v", currentConfig.HonourFileExts)
+		currentConfig.honourFileExts = *newSettings.HonourFileExts
+		s.Debugf("Updated HonourFileExts to %v", currentConfig.honourFileExts)
 	}
 
 	if len(dbName) > 0 && dbName != "" {
-		currentConfig.DbName = dbName
-		s.Debugf("Updated DbName to %s", currentConfig.DbName)
+		currentConfig.dbName = dbName
+		s.Debugf("Updated DbName to %s", currentConfig.dbName)
 	}
 
 	if len(flags) > 0 && flags != "" {
@@ -107,19 +107,19 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 		if err != nil {
 			s.Errorf("Error converting flags to integer: %v", err)
 		} else {
-			currentConfig.Flags = flagsInt
-			s.Debugf("Updated Flags to %d", currentConfig.Flags)
+			currentConfig.flags = flagsInt
+			s.Debugf("Updated Flags to %d", currentConfig.flags)
 		}
 	}
 
 	if len(scanType) > 0 && scanType != "" {
-		currentConfig.SbomType = scanType
-		s.Debugf("Updated SbomType to %s", currentConfig.SbomType)
+		currentConfig.sbomType = scanType
+		s.Debugf("Updated SbomType to %s", currentConfig.sbomType)
 	}
 
 	if len(sbom) > 0 && sbom != "" {
-		currentConfig.SbomFile = sbom
-		s.Debugf("Updated SbomFile to %s", currentConfig.SbomFile)
+		currentConfig.sbomFile = sbom
+		s.Debugf("Updated SbomFile to %s", currentConfig.sbomFile)
 	}
 
 	return *currentConfig
