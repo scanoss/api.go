@@ -176,7 +176,7 @@ func (s APIService) getConfigFromRequest(r *http.Request, zs *zap.SugaredLogger)
 		dbName = strings.TrimSpace(r.Header.Get("db_name"))
 	}
 
-	scanSettings := strings.TrimSpace(r.Header.Get("scanoss-scan-settings")) // Check header for scan settings
+	scanSettings := strings.TrimSpace(r.Header.Get("scanoss-settings")) // Check header for scan settings
 
 	if s.config.App.Trace {
 		zs.Debugf("Header: %v, Form: %v, flags: %v, type: %v, assets: %v, db_name: %v, scanSettings: %v",
