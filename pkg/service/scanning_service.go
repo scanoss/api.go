@@ -37,6 +37,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	sbomIdentify  = "identify"
+	sbomBlackList = "blacklist"
+)
+
 var fileRegex = regexp.MustCompile(`^\w+,(\d+),.+`) // regex to parse file size from request
 
 // ScanDirect handles WFP scanning requests from a client.
@@ -90,8 +95,9 @@ func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.S
 	scanConfig := s.getConfigFromRequest(r, zs)
 	// Check if we have an SBOM (and type) supplied
 	var sbomFilename string
+
 	if len(scanConfig.sbomFile) > 0 && len(scanConfig.sbomType) > 0 {
-		if scanConfig.sbomType != "identify" && scanConfig.sbomType != "blacklist" { // Make sure we have a valid SBOM scan type
+		if scanConfig.sbomType != sbomIdentify && scanConfig.sbomType != sbomBlackList { // Make sure we have a valid SBOM scan type
 			zs.Errorf("Invalid SBOM type: %v", scanConfig.sbomType)
 			http.Error(w, "ERROR invalid SBOM 'type' supplied", http.StatusBadRequest)
 			return 0
@@ -194,10 +200,8 @@ func (s APIService) getConfigFromRequest(r *http.Request, zs *zap.SugaredLogger)
 		if err != nil {
 			zs.Errorf("Error decoding scan settings from base64: %v", err)
 			decoded = nil
-		} else {
-			if s.config.App.Trace {
-				zs.Debugf("Decoded scan settings: %s", string(decoded))
-			}
+		} else if s.config.App.Trace {
+			zs.Debugf("Decoded scan settings: %s", string(decoded))
 		}
 	}
 
@@ -412,9 +416,9 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	// SBOM configuration
 	if len(sbomFile) > 0 && len(config.sbomType) > 0 {
 		switch config.sbomType {
-		case "identify":
+		case sbomIdentify:
 			args = append(args, "-s")
-		case "blacklist":
+		case sbomBlackList:
 			args = append(args, "-b")
 		default:
 			args = append(args, "-s") // Default to identify

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2018-2023 SCANOSS.COM
+ * Copyright (C) 2018-2025 SCANOSS.COM
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,15 +71,23 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 			return *currentConfig
 		}
 	}
-	//TODO add warning for rejecting settings when RankingAllowed is false
-	if newSettings.RankingEnabled != nil && currentConfig.rankingAllowed {
-		currentConfig.rankingEnabled = *newSettings.RankingEnabled
-		s.Debugf("Updated RankingEnabled to %v", currentConfig.rankingEnabled)
+
+	if newSettings.RankingEnabled != nil {
+		if currentConfig.rankingAllowed {
+			currentConfig.rankingEnabled = *newSettings.RankingEnabled
+			s.Debugf("Updated RankingEnabled to %v", currentConfig.rankingEnabled)
+		} else {
+			s.Warnf("RankingEnabled setting ignored as RankingAllowed is false")
+		}
 	}
 
-	if newSettings.RankingThreshold != nil && currentConfig.rankingAllowed {
-		currentConfig.rankingThreshold = *newSettings.RankingThreshold
-		s.Debugf("Updated RankingThreshold to %d", currentConfig.rankingThreshold)
+	if newSettings.RankingThreshold != nil {
+		if currentConfig.rankingAllowed {
+			currentConfig.rankingThreshold = *newSettings.RankingThreshold
+			s.Debugf("Updated RankingThreshold to %d", currentConfig.rankingThreshold)
+		} else {
+			s.Warnf("RankingThreshold setting ignored as RankingAllowed is false")
+		}
 	}
 
 	if newSettings.MinSnippetHits != nil {
