@@ -105,12 +105,12 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 		s.Debugf("Updated HonourFileExts to %v", currentConfig.honourFileExts)
 	}
 
-	if len(dbName) > 0 && dbName != "" {
+	if dbName != "" {
 		currentConfig.dbName = dbName
 		s.Debugf("Updated DbName to %s", currentConfig.dbName)
 	}
 
-	if len(flags) > 0 && flags != "" {
+	if flags != "" {
 		flagsInt, err := strconv.Atoi(flags)
 		if err != nil {
 			s.Errorf("Error converting flags to integer: %v", err)
@@ -120,12 +120,12 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 		}
 	}
 
-	if len(scanType) > 0 && scanType != "" {
+	if scanType != "" {
 		currentConfig.sbomType = scanType
 		s.Debugf("Updated SbomType to %s", currentConfig.sbomType)
 	}
 
-	if len(sbom) > 0 && sbom != "" {
+	if sbom != "" {
 		currentConfig.sbomFile = sbom
 		s.Debugf("Updated SbomFile to %s", currentConfig.sbomFile)
 	}

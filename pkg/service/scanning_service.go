@@ -442,8 +442,8 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	}
 
 	// Honour file extensions (not yet implemented in scanoss engine)
-	if config.honourFileExts {
-		zs.Debugf("HonourFileExts enabled: %v (flag not yet implemented in engine)", config.honourFileExts)
+	if !config.honourFileExts {
+		args = append(args, "--ignore-file-ext")
 	}
 
 	args = append(args, "-w", tempFile.Name())
