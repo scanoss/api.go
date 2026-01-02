@@ -24,30 +24,32 @@ import (
 )
 
 type ScanningServiceConfig struct {
-	flags            int
-	sbomType         string
-	sbomFile         string
-	dbName           string
-	rankingAllowed   bool
-	rankingEnabled   bool
-	rankingThreshold int
-	minSnippetHits   int
-	minSnippetLines  int
-	honourFileExts   bool
+	flags                 int
+	sbomType              string
+	sbomFile              string
+	dbName                string
+	rankingAllowed        bool
+	rankingEnabled        bool
+	rankingThreshold      int
+	minSnippetHits        int
+	minSnippetLines       int
+	snippetRangeTolerance int
+	honourFileExts        bool
 }
 
 func DefaultScanningServiceConfig(serverDefaultConfig *cfg.ServerConfig) ScanningServiceConfig {
 	return ScanningServiceConfig{
-		flags:            serverDefaultConfig.Scanning.ScanFlags,
-		sbomType:         "",
-		sbomFile:         "",
-		dbName:           serverDefaultConfig.Scanning.ScanKbName,
-		rankingAllowed:   serverDefaultConfig.Scanning.RankingAllowed,
-		rankingEnabled:   serverDefaultConfig.Scanning.RankingEnabled,
-		rankingThreshold: serverDefaultConfig.Scanning.RankingThreshold,
-		minSnippetHits:   serverDefaultConfig.Scanning.MinSnippetHits,
-		minSnippetLines:  serverDefaultConfig.Scanning.MinSnippetLines,
-		honourFileExts:   serverDefaultConfig.Scanning.HonourFileExts,
+		flags:                 serverDefaultConfig.Scanning.ScanFlags,
+		sbomType:              "",
+		sbomFile:              "",
+		dbName:                serverDefaultConfig.Scanning.ScanKbName,
+		rankingAllowed:        serverDefaultConfig.Scanning.RankingAllowed,
+		rankingEnabled:        serverDefaultConfig.Scanning.RankingEnabled,
+		rankingThreshold:      serverDefaultConfig.Scanning.RankingThreshold,
+		minSnippetHits:        serverDefaultConfig.Scanning.MinSnippetHits,
+		minSnippetLines:       serverDefaultConfig.Scanning.MinSnippetLines,
+		snippetRangeTolerance: serverDefaultConfig.Scanning.SnippetRangeTol,
+		honourFileExts:        serverDefaultConfig.Scanning.HonourFileExts,
 	}
 }
 
@@ -55,11 +57,12 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 	flags, scanType, sbom, dbName string, inputSettings []byte) ScanningServiceConfig {
 	// ScanSettings represents the scanning parameters that can be configured
 	type scanSettings struct {
-		RankingEnabled   *bool `json:"ranking_enabled,omitempty"`
-		RankingThreshold *int  `json:"ranking_threshold,omitempty"`
-		MinSnippetHits   *int  `json:"min_snippet_hits,omitempty"`
-		MinSnippetLines  *int  `json:"min_snippet_lines,omitempty"`
-		HonourFileExts   *bool `json:"honour_file_exts,omitempty"`
+		RankingEnabled        *bool `json:"ranking_enabled,omitempty"`
+		RankingThreshold      *int  `json:"ranking_threshold,omitempty"`
+		MinSnippetHits        *int  `json:"min_snippet_hits,omitempty"`
+		MinSnippetLines       *int  `json:"min_snippet_lines,omitempty"`
+		SnippetRangeTolerance *int  `json:"snippet_range_tolerance,omitempty"`
+		HonourFileExts        *bool `json:"honour_file_exts,omitempty"`
 	}
 
 	// Parse scan settings from JSON if provided
@@ -98,6 +101,11 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 	if newSettings.MinSnippetLines != nil {
 		currentConfig.minSnippetLines = *newSettings.MinSnippetLines
 		s.Debugf("Updated MinSnippetLines to %d", currentConfig.minSnippetLines)
+	}
+
+	if newSettings.SnippetRangeTolerance != nil {
+		currentConfig.snippetRangeTolerance = *newSettings.SnippetRangeTolerance
+		s.Debugf("Updated SnippetRangeTol to %d", currentConfig.snippetRangeTolerance)
 	}
 
 	if newSettings.HonourFileExts != nil {

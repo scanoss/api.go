@@ -77,6 +77,7 @@ type ServerConfig struct {
 		// snippet matching
 		MinSnippetHits  int  `env:"SCANOSS_MIN_SNIPPET_HITS"`  // Minimum snippet hits to consider a snippet match
 		MinSnippetLines int  `env:"SCANOSS_MIN_SNIPPET_LINES"` // Minimum snippet lines to consider a snippet match
+		SnippetRangeTol int  `env:"SCANOSS_SNIPPET_RANGE_TOL"` // Snippet range tolerance for matching
 		HonourFileExts  bool `env:"SCANOSS_HONOUR_FILE_EXTS"`  // Honour file extensions to filter snippet matches
 	}
 	TLS struct {
@@ -135,6 +136,7 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	// snippet matching
 	cfg.Scanning.MinSnippetHits = 0  // Lets the engine decide on minimum snippet hits based on the file total lines
 	cfg.Scanning.MinSnippetLines = 0 // Lets the engine decide on minimum snippet hits on the file total lines
+	cfg.Scanning.SnippetRangeTol = 0 // Lets the engine decide on snippet range tolerance
 	cfg.Scanning.HonourFileExts = true
 }
 
