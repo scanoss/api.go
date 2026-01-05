@@ -95,7 +95,7 @@ func TestUpdateScanningServiceConfigDTO_JSONSettings(t *testing.T) {
 		RankingThreshold *int  `json:"ranking_threshold,omitempty"`
 		MinSnippetHits   *int  `json:"min_snippet_hits,omitempty"`
 		MinSnippetLines  *int  `json:"min_snippet_lines,omitempty"`
-		SnippetRangeTol  *int  `json:"snippet_range_tol,omitempty"`
+		SnippetRangeTol  *int  `json:"snippet_range_tolerance,omitempty"`
 		HonourFileExts   *bool `json:"honour_file_exts,omitempty"`
 	}{
 		RankingEnabled:   &rankingEnabled,

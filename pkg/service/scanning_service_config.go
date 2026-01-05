@@ -53,6 +53,35 @@ func DefaultScanningServiceConfig(serverDefaultConfig *cfg.ServerConfig) Scannin
 	}
 }
 
+// UpdateScanningServiceConfigDTO creates an updated copy of the scanning service configuration.
+//
+// This function does NOT modify the original currentConfig. Instead, it creates a copy,
+// applies the requested updates to the copy, and returns the updated configuration.
+//
+// Parameters:
+//   - s: Sugared logger for debug/error output
+//   - currentConfig: Pointer to the current configuration (will NOT be modified)
+//   - flags: String representation of scan flags (converted to int). Empty string = no change
+//   - scanType: SBOM type to use for scanning. Empty string = no change
+//   - sbom: SBOM file path. Empty string = no change
+//   - dbName: Database name for scanning. Empty string = no change
+//   - inputSettings: JSON bytes containing optional scan settings. Format:
+//     {
+//       "ranking_enabled": bool,         // Enable/disable ranking (requires ranking_allowed=true)
+//       "ranking_threshold": int,        // Ranking threshold value (requires ranking_allowed=true)
+//       "min_snippet_hits": int,         // Minimum snippet hits to consider a match
+//       "min_snippet_lines": int,        // Minimum snippet lines to consider a match
+//       "snippet_range_tolerance": int,  // Snippet range tolerance for matching
+//       "honour_file_exts": bool         // Honor file extensions when filtering snippets
+//     }
+//
+// Returns:
+//   - A new ScanningServiceConfig with the updates applied. The original config remains unchanged.
+//
+// Note:
+//   - Ranking settings (ranking_enabled, ranking_threshold) are only applied if rankingAllowed is true
+//   - Invalid JSON in inputSettings will be logged and the original config will be returned
+//   - Invalid flags string will be logged and that specific field will not be updated
 func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *ScanningServiceConfig,
 	flags, scanType, sbom, dbName string, inputSettings []byte) ScanningServiceConfig {
 	// ScanSettings represents the scanning parameters that can be configured
@@ -65,57 +94,60 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 		HonourFileExts        *bool `json:"honour_file_exts,omitempty"`
 	}
 
+	// Create a copy of the current config to avoid modifying the original
+	updatedConfig := *currentConfig
+
 	// Parse scan settings from JSON if provided
 	var newSettings scanSettings
 	if len(inputSettings) > 0 {
 		err := json.Unmarshal(inputSettings, &newSettings)
 		if err != nil {
 			s.Errorf("Error unmarshalling scanning service config input: %v", err)
-			return *currentConfig
+			return updatedConfig
 		}
 	}
 
 	if newSettings.RankingEnabled != nil {
-		if currentConfig.rankingAllowed {
-			currentConfig.rankingEnabled = *newSettings.RankingEnabled
-			s.Debugf("Updated RankingEnabled to %v", currentConfig.rankingEnabled)
+		if updatedConfig.rankingAllowed {
+			updatedConfig.rankingEnabled = *newSettings.RankingEnabled
+			s.Debugf("Updated RankingEnabled to %v", updatedConfig.rankingEnabled)
 		} else {
 			s.Warnf("RankingEnabled setting ignored as RankingAllowed is false")
 		}
 	}
 
 	if newSettings.RankingThreshold != nil {
-		if currentConfig.rankingAllowed {
-			currentConfig.rankingThreshold = *newSettings.RankingThreshold
-			s.Debugf("Updated RankingThreshold to %d", currentConfig.rankingThreshold)
+		if updatedConfig.rankingAllowed {
+			updatedConfig.rankingThreshold = *newSettings.RankingThreshold
+			s.Debugf("Updated RankingThreshold to %d", updatedConfig.rankingThreshold)
 		} else {
 			s.Warnf("RankingThreshold setting ignored as RankingAllowed is false")
 		}
 	}
 
 	if newSettings.MinSnippetHits != nil {
-		currentConfig.minSnippetHits = *newSettings.MinSnippetHits
-		s.Debugf("Updated MinSnippetHits to %d", currentConfig.minSnippetHits)
+		updatedConfig.minSnippetHits = *newSettings.MinSnippetHits
+		s.Debugf("Updated MinSnippetHits to %d", updatedConfig.minSnippetHits)
 	}
 
 	if newSettings.MinSnippetLines != nil {
-		currentConfig.minSnippetLines = *newSettings.MinSnippetLines
-		s.Debugf("Updated MinSnippetLines to %d", currentConfig.minSnippetLines)
+		updatedConfig.minSnippetLines = *newSettings.MinSnippetLines
+		s.Debugf("Updated MinSnippetLines to %d", updatedConfig.minSnippetLines)
 	}
 
 	if newSettings.SnippetRangeTolerance != nil {
-		currentConfig.snippetRangeTolerance = *newSettings.SnippetRangeTolerance
-		s.Debugf("Updated SnippetRangeTol to %d", currentConfig.snippetRangeTolerance)
+		updatedConfig.snippetRangeTolerance = *newSettings.SnippetRangeTolerance
+		s.Debugf("Updated SnippetRangeTol to %d", updatedConfig.snippetRangeTolerance)
 	}
 
 	if newSettings.HonourFileExts != nil {
-		currentConfig.honourFileExts = *newSettings.HonourFileExts
-		s.Debugf("Updated HonourFileExts to %v", currentConfig.honourFileExts)
+		updatedConfig.honourFileExts = *newSettings.HonourFileExts
+		s.Debugf("Updated HonourFileExts to %v", updatedConfig.honourFileExts)
 	}
 
 	if dbName != "" {
-		currentConfig.dbName = dbName
-		s.Debugf("Updated DbName to %s", currentConfig.dbName)
+		updatedConfig.dbName = dbName
+		s.Debugf("Updated DbName to %s", updatedConfig.dbName)
 	}
 
 	if flags != "" {
@@ -123,20 +155,20 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 		if err != nil {
 			s.Errorf("Error converting flags to integer: %v", err)
 		} else {
-			currentConfig.flags = flagsInt
-			s.Debugf("Updated Flags to %d", currentConfig.flags)
+			updatedConfig.flags = flagsInt
+			s.Debugf("Updated Flags to %d", updatedConfig.flags)
 		}
 	}
 
 	if scanType != "" {
-		currentConfig.sbomType = scanType
-		s.Debugf("Updated SbomType to %s", currentConfig.sbomType)
+		updatedConfig.sbomType = scanType
+		s.Debugf("Updated SbomType to %s", updatedConfig.sbomType)
 	}
 
 	if sbom != "" {
-		currentConfig.sbomFile = sbom
-		s.Debugf("Updated SbomFile to %s", currentConfig.sbomFile)
+		updatedConfig.sbomFile = sbom
+		s.Debugf("Updated SbomFile to %s", updatedConfig.sbomFile)
 	}
 
-	return *currentConfig
+	return updatedConfig
 }

@@ -75,10 +75,10 @@ type ServerConfig struct {
 		RankingEnabled   bool `env:"SCANOSS_RANKING_ENABLED"`   // Enable ranking in scan results
 		RankingThreshold int  `env:"SCANOSS_RANKING_THRESHOLD"` // Ranking threshold to use
 		// snippet matching
-		MinSnippetHits  int  `env:"SCANOSS_MIN_SNIPPET_HITS"`  // Minimum snippet hits to consider a snippet match
-		MinSnippetLines int  `env:"SCANOSS_MIN_SNIPPET_LINES"` // Minimum snippet lines to consider a snippet match
-		SnippetRangeTol int  `env:"SCANOSS_SNIPPET_RANGE_TOL"` // Snippet range tolerance for matching
-		HonourFileExts  bool `env:"SCANOSS_HONOUR_FILE_EXTS"`  // Honour file extensions to filter snippet matches
+		MinSnippetHits  int  `env:"SCANOSS_MIN_SNIPPET_HITS"`        // Minimum snippet hits to consider a snippet match
+		MinSnippetLines int  `env:"SCANOSS_MIN_SNIPPET_LINES"`       // Minimum snippet lines to consider a snippet match
+		SnippetRangeTol int  `env:"SCANOSS_SNIPPET_RANGE_TOLERANCE"` // Snippet range tolerance for matching
+		HonourFileExts  bool `env:"SCANOSS_HONOUR_FILE_EXTS"`        // Honour file extensions to filter snippet matches
 	}
 	TLS struct {
 		CertFile string `env:"SCAN_TLS_CERT"`   // TLS Certificate
