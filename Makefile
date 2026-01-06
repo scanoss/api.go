@@ -33,6 +33,10 @@ unit_test:  ## Run all unit tests in the pkg folder
 	@echo "Running unit test framework..."
 	go test -v ./pkg/...
 
+unit_test_cover:  ## Run all unit tests in the pkg folder
+	@echo "Running unit test framework with coverage..."
+	go test -cover ./pkg/...
+
 int_test: clean_testcache  ## Run all integration tests in the tests folder
 	@echo "Running integration test framework..."
 	go test -v ./tests
@@ -65,6 +69,13 @@ e2e_test: docker_build_test clean_testcache  ## Run end to end integration tests
 	${DOCKER} compose down
 	${DOCKER} compose up -d
 	${DOCKER} compose exec -T http go test -v -tags="integration e2e" ./tests
+	${DOCKER} compose down
+
+e2e_test_cover: docker_build_test clean_testcache  ## Run end to end integration tests using Docker
+	@echo "Running End-to-End tests..."
+	${DOCKER} compose down
+	${DOCKER} compose up -d
+	${DOCKER} compose exec -T http go test -cover -v -tags="integration e2e" ./tests
 	${DOCKER} compose down
 
 ghcr_build: version  ## Build GitHub container image
