@@ -13,6 +13,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
 package service
 
 import (
@@ -67,12 +68,12 @@ func DefaultScanningServiceConfig(serverDefaultConfig *cfg.ServerConfig) Scannin
 //   - dbName: Database name for scanning. Empty string = no change
 //   - inputSettings: JSON bytes containing optional scan settings. Format:
 //     {
-//       "ranking_enabled": bool,         // Enable/disable ranking (requires ranking_allowed=true)
-//       "ranking_threshold": int,        // Ranking threshold value (requires ranking_allowed=true)
-//       "min_snippet_hits": int,         // Minimum snippet hits to consider a match
-//       "min_snippet_lines": int,        // Minimum snippet lines to consider a match
-//       "snippet_range_tolerance": int,  // Snippet range tolerance for matching
-//       "honour_file_exts": bool         // Honor file extensions when filtering snippets
+//     "ranking_enabled": bool,         // Enable/disable ranking (requires ranking_allowed=true)
+//     "ranking_threshold": int,        // Ranking threshold value (requires ranking_allowed=true)
+//     "min_snippet_hits": int,         // Minimum snippet hits to consider a match
+//     "min_snippet_lines": int,        // Minimum snippet lines to consider a match
+//     "snippet_range_tolerance": int,  // Snippet range tolerance for matching
+//     "honour_file_exts": bool         // Honor file extensions when filtering snippets
 //     }
 //
 // Returns:
