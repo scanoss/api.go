@@ -27,6 +27,11 @@ fi
 if [ "$1" == "-k" ] || [ "$2" == "-k" ] || [ "$3" == "-k" ] ; then
   for i in "$@"; do :; done
   md5=$i
+  # Validate MD5 format (32 hexadecimal characters)
+  if [[ ! "$md5" =~ ^[a-fA-F0-9]{32}$ ]]; then
+    echo "Error: Invalid MD5 hash format: $md5"
+    exit 1
+  fi
   echo "file contents: $md5"
   echo "line 2"
   echo "line 3"
@@ -51,16 +56,14 @@ if [ "$1" == "-l" ] || [ "$2" == "-l" ] || [ "$3" == "-l" ] ; then
   exit 0
 fi
 
-# Simulate invalid kb name
+# Simulate kb name validation - accept any non-empty KB name
+# If -n is provided but kb name is empty, this would be an invalid parameter format
+# The real engine accepts any KB name that exists, so we accept all non-empty names
 for arg in "$@"; do
-  if [[ "$arg" == "-n"* ]]; then
-    # Extract everything after "-n"
-    scf=${arg#-n}
-    # Only show error if the value is NOT "oss"
-    if [[ "$scf" != "oss" ]]; then
-      echo "{Error: file and url tables must be present in $scf KB in order to proceed with the scan"
-      exit 1
-    fi
+  if [[ "$arg" == "-n" ]]; then
+    # -n followed by space (separate argument) is invalid - KB name should be attached
+    echo "Error: -n flag requires a KB name (use -n<name>)" >&2
+    exit 1
   fi
 done
 
