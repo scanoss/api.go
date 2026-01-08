@@ -199,7 +199,7 @@ func (s APIService) getConfigFromRequest(r *http.Request, zs *zap.SugaredLogger)
 		decoded, err = base64.StdEncoding.DecodeString(scanSettings)
 		if err != nil {
 			zs.Errorf("Error decoding scan settings from base64: %v", err)
-			return scanConfig, fmt.Errorf("Error decoding scan settings from base64: %v", err)
+			return scanConfig, fmt.Errorf("error decoding scan settings from base64: %v", err)
 		} else if s.config.App.Trace {
 			zs.Debugf("Decoded scan settings: %s", string(decoded))
 		}

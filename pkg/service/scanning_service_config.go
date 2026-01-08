@@ -98,7 +98,7 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 	// Create a copy of the current config to avoid modifying the original
 	if currentConfig == nil {
 		s.Errorf("Current scanning service config is nil")
-		return ScanningServiceConfig{}, fmt.Errorf("Default server scanning service config is undefined")
+		return ScanningServiceConfig{}, fmt.Errorf("default server scanning service config is undefined")
 	}
 	updatedConfig := *currentConfig
 	// Parse scan settings from JSON if provided
@@ -107,7 +107,7 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 		err := json.Unmarshal(inputSettings, &newSettings)
 		if err != nil {
 			s.Errorf("Error unmarshalling scanning service config input: %v", err)
-			return updatedConfig, fmt.Errorf("Error unmarshalling scanning service config requested by client: %v", err)
+			return updatedConfig, fmt.Errorf("error unmarshalling scanning service config requested by client: %v", err)
 		}
 	}
 	if newSettings.RankingEnabled != nil {
