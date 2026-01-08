@@ -100,7 +100,6 @@ func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.S
 	}
 	// Check if we have an SBOM (and type) supplied
 	var sbomFilename string
-
 	if len(scanConfig.sbomFile) > 0 && len(scanConfig.sbomType) > 0 {
 		if scanConfig.sbomType != sbomIdentify && scanConfig.sbomType != sbomBlackList { // Make sure we have a valid SBOM scan type
 			zs.Errorf("Invalid SBOM type: %v", scanConfig.sbomType)
@@ -391,6 +390,7 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	zs.Debugf("Using temporary file: %v", tempFile.Name())
 	_, err = tempFile.WriteString(wfp + "\n")
 	if err != nil {
+		closeFile(tempFile, zs)
 		zs.Errorf("Failed to write WFP to temporary file: %v", err)
 		return "", fmt.Errorf("failed to write to temporary WFP file")
 	}
@@ -400,17 +400,14 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	if s.config.Scanning.ScanDebug {
 		args = append(args, "-d") // Set debug mode
 	}
-
 	// Database name
 	if len(config.dbName) > 0 {
 		args = append(args, fmt.Sprintf("-n%s", config.dbName))
 	}
-
 	// Scanning flags
 	if config.flags > 0 {
 		args = append(args, fmt.Sprintf("-F%v", config.flags))
 	}
-
 	// SBOM configuration
 	if len(sbomFile) > 0 && len(config.sbomType) > 0 {
 		switch config.sbomType {
@@ -423,32 +420,27 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 		}
 		args = append(args, sbomFile)
 	}
-
 	// Ranking threshold (only if ranking is enabled and allowed)
 	if config.rankingEnabled && config.rankingThreshold > 0 {
 		args = append(args, fmt.Sprintf("-r%d", config.rankingThreshold))
 	}
-
 	// Minimum snippet hits
 	if config.minSnippetHits > 0 {
 		args = append(args, fmt.Sprintf("--min-snippet-hits=%d", config.minSnippetHits))
 	}
-
 	// Minimum snippet lines
 	if config.minSnippetLines > 0 {
 		args = append(args, fmt.Sprintf("--min-snippet-lines=%d", config.minSnippetLines))
 	}
-
 	// Snippet range tolerance
 	if config.snippetRangeTolerance > 0 {
 		args = append(args, fmt.Sprintf("--range-tolerance=%d", config.snippetRangeTolerance))
 	}
-
 	// Honour file extensions (not yet implemented in scanoss engine)
 	if !config.honourFileExts {
 		args = append(args, "--ignore-file-ext")
 	}
-
+	// WFP file argument
 	args = append(args, "-w", tempFile.Name())
 	zs.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.config.Scanning.ScanTimeout)*time.Second) // put a timeout on the scan execution

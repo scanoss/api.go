@@ -136,7 +136,7 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 	}
 	if newSettings.SnippetRangeTolerance != nil {
 		updatedConfig.snippetRangeTolerance = *newSettings.SnippetRangeTolerance
-		s.Debugf("Updated SnippetRangeTol to %d", updatedConfig.snippetRangeTolerance)
+		s.Debugf("Updated SnippetRangeTolerance to %d", updatedConfig.snippetRangeTolerance)
 	}
 	if newSettings.HonourFileExts != nil {
 		updatedConfig.honourFileExts = *newSettings.HonourFileExts

@@ -41,6 +41,10 @@ int_test: clean_testcache  ## Run all integration tests in the tests folder
 	@echo "Running integration test framework..."
 	go test -v ./tests
 
+int_test_cover: clean_testcache  ## Run all integration tests in the tests folder
+	@echo "Running integration test framework..."
+	go test -cover -v ./tests
+
 lint_local_clean: ## Cleanup the local cache from the linter
 	@echo "Cleaning linter cache..."
 	golangci-lint cache clean
