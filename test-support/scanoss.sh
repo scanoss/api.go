@@ -68,12 +68,15 @@ for arg in "$@"; do
 done
 
 # Simulate return a scan result
-if [ "$1" == "-w" ] || [ "$2" == "-w" ] || [ "$3" == "-w" ] || [ "$4" == "-w" ] || [ "$5" == "-w" ] || [ "$6" == "-w" ] || [ "$7" == "-w" ] || [ "$8" == "-w" ]; then
-  for i in "$@"; do :; done
-  scf=$i
-  echo " {\"$scf\":[{\"id\": \"none\", \"server\": { \"kb_version\": {\"daily\": \"23.08.09\", \"monthly\": \"23.07\"}, \"version\": \"5.2.7\"}}]}  "
-  exit 0
-fi
+# Check if -w is present anywhere in the arguments
+for arg in "$@"; do
+  if [[ "$arg" == "-w" ]]; then
+    for i in "$@"; do :; done
+    scf=$i
+    echo " {\"$scf\":[{\"id\": \"none\", \"server\": { \"kb_version\": {\"daily\": \"23.08.09\", \"monthly\": \"23.07\"}, \"version\": \"5.2.7\"}}]}  "
+    exit 0
+  fi
+done
 
 # Unknown command option, respond with error
 echo "Unknown command option: $*"

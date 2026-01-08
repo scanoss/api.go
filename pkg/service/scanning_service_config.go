@@ -18,6 +18,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"go.uber.org/zap"
@@ -84,7 +85,7 @@ func DefaultScanningServiceConfig(serverDefaultConfig *cfg.ServerConfig) Scannin
 //   - Invalid JSON in inputSettings will be logged and the original config will be returned
 //   - Invalid flags string will be logged and that specific field will not be updated
 func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *ScanningServiceConfig,
-	flags, scanType, sbom, dbName string, inputSettings []byte) ScanningServiceConfig {
+	flags, scanType, sbom, dbName string, inputSettings []byte) (ScanningServiceConfig, error) {
 	// ScanSettings represents the scanning parameters that can be configured
 	type scanSettings struct {
 		RankingEnabled        *bool `json:"ranking_enabled,omitempty"`
@@ -94,20 +95,21 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 		SnippetRangeTolerance *int  `json:"snippet_range_tolerance,omitempty"`
 		HonourFileExts        *bool `json:"honour_file_exts,omitempty"`
 	}
-
 	// Create a copy of the current config to avoid modifying the original
+	if currentConfig == nil {
+		s.Errorf("Current scanning service config is nil")
+		return ScanningServiceConfig{}, fmt.Errorf("Default server scanning service config is undefined")
+	}
 	updatedConfig := *currentConfig
-
 	// Parse scan settings from JSON if provided
 	var newSettings scanSettings
 	if len(inputSettings) > 0 {
 		err := json.Unmarshal(inputSettings, &newSettings)
 		if err != nil {
 			s.Errorf("Error unmarshalling scanning service config input: %v", err)
-			return updatedConfig
+			return updatedConfig, fmt.Errorf("Error unmarshalling scanning service config requested by client: %v", err)
 		}
 	}
-
 	if newSettings.RankingEnabled != nil {
 		if updatedConfig.rankingAllowed {
 			updatedConfig.rankingEnabled = *newSettings.RankingEnabled
@@ -116,7 +118,6 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 			s.Warnf("RankingEnabled setting ignored as RankingAllowed is false")
 		}
 	}
-
 	if newSettings.RankingThreshold != nil {
 		if updatedConfig.rankingAllowed {
 			updatedConfig.rankingThreshold = *newSettings.RankingThreshold
@@ -125,32 +126,26 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 			s.Warnf("RankingThreshold setting ignored as RankingAllowed is false")
 		}
 	}
-
 	if newSettings.MinSnippetHits != nil {
 		updatedConfig.minSnippetHits = *newSettings.MinSnippetHits
 		s.Debugf("Updated MinSnippetHits to %d", updatedConfig.minSnippetHits)
 	}
-
 	if newSettings.MinSnippetLines != nil {
 		updatedConfig.minSnippetLines = *newSettings.MinSnippetLines
 		s.Debugf("Updated MinSnippetLines to %d", updatedConfig.minSnippetLines)
 	}
-
 	if newSettings.SnippetRangeTolerance != nil {
 		updatedConfig.snippetRangeTolerance = *newSettings.SnippetRangeTolerance
 		s.Debugf("Updated SnippetRangeTol to %d", updatedConfig.snippetRangeTolerance)
 	}
-
 	if newSettings.HonourFileExts != nil {
 		updatedConfig.honourFileExts = *newSettings.HonourFileExts
 		s.Debugf("Updated HonourFileExts to %v", updatedConfig.honourFileExts)
 	}
-
 	if dbName != "" {
 		updatedConfig.dbName = dbName
 		s.Debugf("Updated DbName to %s", updatedConfig.dbName)
 	}
-
 	if flags != "" {
 		flagsInt, err := strconv.Atoi(flags)
 		if err != nil {
@@ -160,16 +155,13 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 			s.Debugf("Updated Flags to %d", updatedConfig.flags)
 		}
 	}
-
 	if scanType != "" {
 		updatedConfig.sbomType = scanType
 		s.Debugf("Updated SbomType to %s", updatedConfig.sbomType)
 	}
-
 	if sbom != "" {
 		updatedConfig.sbomFile = sbom
 		s.Debugf("Updated SbomFile to %s", updatedConfig.sbomFile)
 	}
-
-	return updatedConfig
+	return updatedConfig, nil
 }

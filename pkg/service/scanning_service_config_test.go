@@ -111,7 +111,10 @@ func TestUpdateScanningServiceConfigDTO_JSONSettings(t *testing.T) {
 		t.Fatalf("Failed to marshal JSON: %v", err)
 	}
 
-	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
+	result, err := UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	if !result.rankingEnabled {
 		t.Error("Expected RankingEnabled to be true")
@@ -161,7 +164,10 @@ func TestUpdateScanningServiceConfigDTO_RankingNotAllowed(t *testing.T) {
 		t.Fatalf("Failed to marshal JSON: %v", err)
 	}
 
-	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
+	result, err := UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	// Should remain false because RankingAllowed is false
 	if result.rankingEnabled {
@@ -184,12 +190,15 @@ func TestUpdateScanningServiceConfigDTO_LegacyParameters(t *testing.T) {
 		sbomFile: "",
 	}
 
-	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig,
+	result, err := UpdateScanningServiceConfigDTO(sugar, &baseConfig,
 		"123",         // flags
 		"identify",    // scanType
 		"assets.json", // sbom
 		"custom-db",   // dbName
 		nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	if result.flags != 123 {
 		t.Errorf("Expected Flags to be 123, got %d", result.flags)
@@ -215,20 +224,23 @@ func TestUpdateScanningServiceConfigDTO_InvalidInput(t *testing.T) {
 		minSnippetHits: 10,
 	}
 
-	// Test with invalid flags
-	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig,
+	// Test with invalid flags (should not return error, just keep original value)
+	result, err := UpdateScanningServiceConfigDTO(sugar, &baseConfig,
 		"not-a-number", "", "", "", nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	if result.flags != 42 {
 		t.Errorf("Expected Flags to remain 42 after invalid conversion, got %d", result.flags)
 	}
 
-	// Test with invalid JSON
+	// Test with invalid JSON (should return error)
 	invalidJSON := []byte("{invalid json}")
-	result = UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", invalidJSON)
+	_, err = UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", invalidJSON)
 
-	if result.minSnippetHits != 10 {
-		t.Errorf("Expected MinSnippetHits to remain 10 after invalid JSON, got %d", result.minSnippetHits)
+	if err == nil {
+		t.Error("Expected error for invalid JSON input")
 	}
 }
 
@@ -266,12 +278,15 @@ func TestUpdateScanningServiceConfigDTO_CombinedUpdate(t *testing.T) {
 		t.Fatalf("Failed to marshal JSON: %v", err)
 	}
 
-	result := UpdateScanningServiceConfigDTO(sugar, &baseConfig,
+	result, err := UpdateScanningServiceConfigDTO(sugar, &baseConfig,
 		"256",       // flags
 		"blacklist", // scanType
 		"",          // sbom
 		"prod-db",   // dbName
 		jsonBytes)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
 
 	// Check JSON settings were applied
 	if !result.rankingEnabled {
@@ -293,5 +308,17 @@ func TestUpdateScanningServiceConfigDTO_CombinedUpdate(t *testing.T) {
 	}
 	if result.sbomType != "blacklist" {
 		t.Errorf("Expected SbomType to be 'blacklist', got '%s'", result.sbomType)
+	}
+}
+
+// TestUpdateScanningServiceConfigDTO_NilConfig tests that nil config returns an error
+func TestUpdateScanningServiceConfigDTO_NilConfig(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	sugar := logger.Sugar()
+
+	_, err := UpdateScanningServiceConfigDTO(sugar, nil, "", "", "", "", nil)
+
+	if err == nil {
+		t.Error("Expected error when currentConfig is nil")
 	}
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (C) 2018-2023 SCANOSS.COM
+ * Copyright (C) 2018-2025 SCANOSS.COM
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -92,7 +92,12 @@ func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.S
 		setSpanError(span, "No WFP contents supplied")
 		return 0
 	}
-	scanConfig := s.getConfigFromRequest(r, zs)
+	scanConfig, err := s.getConfigFromRequest(r, zs)
+	if err != nil {
+		http.Error(w, "ERROR invalid scanning configuration", http.StatusBadRequest)
+		setSpanError(span, "Invalid scanning configuration.")
+		return 0
+	}
 	// Check if we have an SBOM (and type) supplied
 	var sbomFilename string
 
@@ -162,12 +167,11 @@ func (s APIService) countScanSize(wfps []string, wfpCount int64, zs *zap.Sugared
 }
 
 // getConfigFromRequest extracts the form values from a request and returns the scanning configuration.
-func (s APIService) getConfigFromRequest(r *http.Request, zs *zap.SugaredLogger) ScanningServiceConfig {
+func (s APIService) getConfigFromRequest(r *http.Request, zs *zap.SugaredLogger) (ScanningServiceConfig, error) {
 	flags := strings.TrimSpace(r.FormValue("flags"))    // Check form for scanning flags
 	scanType := strings.TrimSpace(r.FormValue("type"))  // Check form for SBOM type
 	sbom := strings.TrimSpace(r.FormValue("assets"))    // Check form for SBOM contents
 	dbName := strings.TrimSpace(r.FormValue("db_name")) // Check form for db name
-
 	// Fall back to headers if form values are empty
 	if len(flags) == 0 {
 		flags = strings.TrimSpace(r.Header.Get("flags"))
@@ -181,17 +185,13 @@ func (s APIService) getConfigFromRequest(r *http.Request, zs *zap.SugaredLogger)
 	if len(dbName) == 0 {
 		dbName = strings.TrimSpace(r.Header.Get("db_name"))
 	}
-
-	scanSettings := strings.TrimSpace(r.Header.Get("scanoss-settings")) // Check header for scan settings
-
+	scanSettings := strings.TrimSpace(r.Header.Get("scanoss-scan-settings")) // Check header for scan settings
 	if s.config.App.Trace {
 		zs.Debugf("Header: %v, Form: %v, flags: %v, type: %v, assets: %v, db_name: %v, scanSettings: %v",
 			r.Header, r.Form, flags, scanType, sbom, dbName, scanSettings)
 	}
-
 	// Create default configuration from server config
 	scanConfig := DefaultScanningServiceConfig(s.config)
-
 	// Decode scan settings from base64 if provided
 	var decoded []byte
 	if len(scanSettings) > 0 {
@@ -199,12 +199,11 @@ func (s APIService) getConfigFromRequest(r *http.Request, zs *zap.SugaredLogger)
 		decoded, err = base64.StdEncoding.DecodeString(scanSettings)
 		if err != nil {
 			zs.Errorf("Error decoding scan settings from base64: %v", err)
-			decoded = nil
+			return scanConfig, fmt.Errorf("Error decoding scan settings from base64: %v", err)
 		} else if s.config.App.Trace {
 			zs.Debugf("Decoded scan settings: %s", string(decoded))
 		}
 	}
-
 	return UpdateScanningServiceConfigDTO(zs, &scanConfig, flags, scanType, sbom, dbName, decoded)
 }
 
@@ -396,7 +395,6 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 		return "", fmt.Errorf("failed to write to temporary WFP file")
 	}
 	closeFile(tempFile, zs)
-
 	// Build command arguments
 	var args []string
 	if s.config.Scanning.ScanDebug {
@@ -410,7 +408,7 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 
 	// Scanning flags
 	if config.flags > 0 {
-		args = append(args, fmt.Sprintf("-F %v", config.flags))
+		args = append(args, fmt.Sprintf("-F%v", config.flags))
 	}
 
 	// SBOM configuration
@@ -427,7 +425,7 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	}
 
 	// Ranking threshold (only if ranking is enabled and allowed)
-	if config.rankingEnabled {
+	if config.rankingEnabled && config.rankingThreshold > 0 {
 		args = append(args, fmt.Sprintf("-r%d", config.rankingThreshold))
 	}
 

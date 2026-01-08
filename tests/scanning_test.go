@@ -165,10 +165,10 @@ func (s *E2EScanningSuite) TestScanSettingsHeader() {
 			name:            "Test Invalid ScanSettings - Invalid Base64",
 			filename:        "../pkg/service/tests/fingers.wfp",
 			shortName:       "fingers.wfp",
-			scanSettingsB64: "invalid-base64!!!", // Invalid base64 string - should be handled gracefully
+			scanSettingsB64: "invalid-base64!!!", // Invalid base64 string - should return error
 			extraFields:     map[string]string{},
-			want:            http.StatusOK, // Should still pass, but log error and use defaults
-			description:     "Should handle invalid base64 gracefully and continue with defaults",
+			want:            http.StatusBadRequest, // Invalid scan settings should return error
+			description:     "Should return error for invalid base64 scan settings",
 		},
 		{
 			name:        "Test ScanSettings with Legacy Flags",
