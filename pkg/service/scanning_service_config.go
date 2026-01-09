@@ -55,6 +55,92 @@ func DefaultScanningServiceConfig(serverDefaultConfig *cfg.ServerConfig) Scannin
 	}
 }
 
+// scanSettings represents the scanning parameters that can be configured via JSON input.
+type scanSettings struct {
+	RankingEnabled        *bool `json:"ranking_enabled,omitempty"`
+	RankingThreshold      *int  `json:"ranking_threshold,omitempty"`
+	MinSnippetHits        *int  `json:"min_snippet_hits,omitempty"`
+	MinSnippetLines       *int  `json:"min_snippet_lines,omitempty"`
+	SnippetRangeTolerance *int  `json:"snippet_range_tolerance,omitempty"`
+	HonourFileExts        *bool `json:"honour_file_exts,omitempty"`
+}
+
+// applyRankingSettings updates ranking-related configuration if allowed.
+func applyRankingSettings(s *zap.SugaredLogger, config *ScanningServiceConfig, settings *scanSettings) {
+	rankingRequested := settings.RankingEnabled != nil || settings.RankingThreshold != nil
+	if rankingRequested && !config.rankingAllowed {
+		s.Warnf("Ranking settings ignored as RankingAllowed is false")
+		return
+	}
+	if settings.RankingEnabled != nil {
+		config.rankingEnabled = *settings.RankingEnabled
+		s.Debugf("Updated RankingEnabled to %v", config.rankingEnabled)
+	}
+	if settings.RankingThreshold != nil {
+		config.rankingThreshold = *settings.RankingThreshold
+		s.Debugf("Updated RankingThreshold to %d", config.rankingThreshold)
+	}
+}
+
+// applySnippetSettings updates snippet-related configuration and returns invalid setting names.
+func applySnippetSettings(s *zap.SugaredLogger, config *ScanningServiceConfig, settings *scanSettings) []string {
+	var invalidSettings []string
+	if settings.MinSnippetHits != nil {
+		if *settings.MinSnippetHits >= 0 {
+			config.minSnippetHits = *settings.MinSnippetHits
+			s.Debugf("Updated MinSnippetHits to %d", config.minSnippetHits)
+		} else {
+			invalidSettings = append(invalidSettings, fmt.Sprintf("MinSnippetHits: %d", *settings.MinSnippetHits))
+		}
+	}
+	if settings.MinSnippetLines != nil {
+		if *settings.MinSnippetLines > 0 {
+			config.minSnippetLines = *settings.MinSnippetLines
+			s.Debugf("Updated MinSnippetLines to %d", config.minSnippetLines)
+		} else {
+			invalidSettings = append(invalidSettings, fmt.Sprintf("MinSnippetLines: %d", *settings.MinSnippetLines))
+		}
+	}
+	if settings.SnippetRangeTolerance != nil {
+		if *settings.SnippetRangeTolerance >= 0 {
+			config.snippetRangeTolerance = *settings.SnippetRangeTolerance
+			s.Debugf("Updated SnippetRangeTolerance to %d", config.snippetRangeTolerance)
+		} else {
+			invalidSettings = append(invalidSettings, fmt.Sprintf("SnippetRangeTolerance: %d", *settings.SnippetRangeTolerance))
+		}
+	}
+	if settings.HonourFileExts != nil {
+		config.honourFileExts = *settings.HonourFileExts
+		s.Debugf("Updated HonourFileExts to %v", config.honourFileExts)
+	}
+	return invalidSettings
+}
+
+// applyDirectParameters updates configuration from direct string parameters.
+func applyDirectParameters(s *zap.SugaredLogger, config *ScanningServiceConfig, flags, scanType, sbom, dbName string) {
+	if dbName != "" {
+		config.dbName = dbName
+		s.Debugf("Updated DbName to %s", config.dbName)
+	}
+	if flags != "" {
+		flagsInt, err := strconv.Atoi(flags)
+		if err == nil {
+			config.flags = flagsInt
+			s.Debugf("Updated Flags to %d", config.flags)
+		} else {
+			s.Errorf("Error converting flags to integer: %v", err)
+		}
+	}
+	if scanType != "" {
+		config.sbomType = scanType
+		s.Debugf("Updated SbomType to %s", config.sbomType)
+	}
+	if sbom != "" {
+		config.sbomFile = sbom
+		s.Debugf("Updated SbomFile to %s", config.sbomFile)
+	}
+}
+
 // UpdateScanningServiceConfigDTO creates an updated copy of the scanning service configuration.
 //
 // This function does NOT modify the original currentConfig. Instead, it creates a copy,
@@ -86,94 +172,25 @@ func DefaultScanningServiceConfig(serverDefaultConfig *cfg.ServerConfig) Scannin
 //   - Invalid flags string will be logged and that specific field will not be updated
 func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *ScanningServiceConfig,
 	flags, scanType, sbom, dbName string, inputSettings []byte) (ScanningServiceConfig, error) {
-	// ScanSettings represents the scanning parameters that can be configured
-	type scanSettings struct {
-		RankingEnabled        *bool `json:"ranking_enabled,omitempty"`
-		RankingThreshold      *int  `json:"ranking_threshold,omitempty"`
-		MinSnippetHits        *int  `json:"min_snippet_hits,omitempty"`
-		MinSnippetLines       *int  `json:"min_snippet_lines,omitempty"`
-		SnippetRangeTolerance *int  `json:"snippet_range_tolerance,omitempty"`
-		HonourFileExts        *bool `json:"honour_file_exts,omitempty"`
-	}
-	// Create a copy of the current config to avoid modifying the original
 	if currentConfig == nil {
 		s.Errorf("Current scanning service config is nil")
 		return ScanningServiceConfig{}, fmt.Errorf("default server scanning service config is undefined")
 	}
 	updatedConfig := *currentConfig
-	// Parse scan settings from JSON if provided
+
 	var newSettings scanSettings
 	if len(inputSettings) > 0 {
-		err := json.Unmarshal(inputSettings, &newSettings)
-		if err != nil {
+		if err := json.Unmarshal(inputSettings, &newSettings); err != nil {
 			s.Errorf("Error unmarshalling scanning service config input: %v", err)
 			return updatedConfig, fmt.Errorf("error unmarshalling scanning service config requested by client: %v", err)
 		}
 	}
-	if newSettings.RankingEnabled != nil {
-		if updatedConfig.rankingAllowed {
-			updatedConfig.rankingEnabled = *newSettings.RankingEnabled
-			s.Debugf("Updated RankingEnabled to %v", updatedConfig.rankingEnabled)
-		} else {
-			s.Warnf("RankingEnabled setting ignored as RankingAllowed is false")
-		}
+
+	applyRankingSettings(s, &updatedConfig, &newSettings)
+	if invalidSettings := applySnippetSettings(s, &updatedConfig, &newSettings); len(invalidSettings) > 0 {
+		s.Errorf("Ignoring invalid values for settings: %v", invalidSettings)
 	}
-	if newSettings.RankingThreshold != nil {
-		if updatedConfig.rankingAllowed {
-			updatedConfig.rankingThreshold = *newSettings.RankingThreshold
-			s.Debugf("Updated RankingThreshold to %d", updatedConfig.rankingThreshold)
-		} else {
-			s.Warnf("RankingThreshold setting ignored as RankingAllowed is false")
-		}
-	}
-	if newSettings.MinSnippetHits != nil {
-		if *newSettings.MinSnippetHits >= 0 {
-			updatedConfig.minSnippetHits = *newSettings.MinSnippetHits
-			s.Debugf("Updated MinSnippetHits to %d", updatedConfig.minSnippetHits)
-		} else {
-			s.Errorf("Ignoring invalid value for MinSnippetHits: %v", *newSettings.MinSnippetHits)
-		}
-	}
-	if newSettings.MinSnippetLines != nil {
-		if *newSettings.MinSnippetLines > 0 {
-			updatedConfig.minSnippetLines = *newSettings.MinSnippetLines
-			s.Debugf("Updated MinSnippetLines to %d", updatedConfig.minSnippetLines)
-		} else {
-			s.Errorf("Ignoring invalid value for MinSnippetLines: %v", *newSettings.MinSnippetLines)
-		}
-	}
-	if newSettings.SnippetRangeTolerance != nil {
-		if *newSettings.SnippetRangeTolerance >= 0 {
-			updatedConfig.snippetRangeTolerance = *newSettings.SnippetRangeTolerance
-			s.Debugf("Updated SnippetRangeTolerance to %d", updatedConfig.snippetRangeTolerance)
-		} else {
-			s.Errorf("Ignoring invalid value for SnippetRangeTolerance: %v", *newSettings.SnippetRangeTolerance)
-		}
-	}
-	if newSettings.HonourFileExts != nil {
-		updatedConfig.honourFileExts = *newSettings.HonourFileExts
-		s.Debugf("Updated HonourFileExts to %v", updatedConfig.honourFileExts)
-	}
-	if dbName != "" {
-		updatedConfig.dbName = dbName
-		s.Debugf("Updated DbName to %s", updatedConfig.dbName)
-	}
-	if flags != "" {
-		flagsInt, err := strconv.Atoi(flags)
-		if err != nil {
-			s.Errorf("Error converting flags to integer: %v", err)
-		} else {
-			updatedConfig.flags = flagsInt
-			s.Debugf("Updated Flags to %d", updatedConfig.flags)
-		}
-	}
-	if scanType != "" {
-		updatedConfig.sbomType = scanType
-		s.Debugf("Updated SbomType to %s", updatedConfig.sbomType)
-	}
-	if sbom != "" {
-		updatedConfig.sbomFile = sbom
-		s.Debugf("Updated SbomFile to %s", updatedConfig.sbomFile)
-	}
+	applyDirectParameters(s, &updatedConfig, flags, scanType, sbom, dbName)
+
 	return updatedConfig, nil
 }
