@@ -127,16 +127,28 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 		}
 	}
 	if newSettings.MinSnippetHits != nil {
-		updatedConfig.minSnippetHits = *newSettings.MinSnippetHits
-		s.Debugf("Updated MinSnippetHits to %d", updatedConfig.minSnippetHits)
+		if *newSettings.MinSnippetHits >= 0 {
+			updatedConfig.minSnippetHits = *newSettings.MinSnippetHits
+			s.Debugf("Updated MinSnippetHits to %d", updatedConfig.minSnippetHits)
+		} else {
+			s.Errorf("Ignoring invalid value for MinSnippetHits: %v", *newSettings.MinSnippetHits)
+		}
 	}
 	if newSettings.MinSnippetLines != nil {
-		updatedConfig.minSnippetLines = *newSettings.MinSnippetLines
-		s.Debugf("Updated MinSnippetLines to %d", updatedConfig.minSnippetLines)
+		if *newSettings.MinSnippetLines > 0 {
+			updatedConfig.minSnippetLines = *newSettings.MinSnippetLines
+			s.Debugf("Updated MinSnippetLines to %d", updatedConfig.minSnippetLines)
+		} else {
+			s.Errorf("Ignoring invalid value for MinSnippetLines: %v", *newSettings.MinSnippetLines)
+		}
 	}
 	if newSettings.SnippetRangeTolerance != nil {
-		updatedConfig.snippetRangeTolerance = *newSettings.SnippetRangeTolerance
-		s.Debugf("Updated SnippetRangeTolerance to %d", updatedConfig.snippetRangeTolerance)
+		if *newSettings.SnippetRangeTolerance >= 0 {
+			updatedConfig.snippetRangeTolerance = *newSettings.SnippetRangeTolerance
+			s.Debugf("Updated SnippetRangeTolerance to %d", updatedConfig.snippetRangeTolerance)
+		} else {
+			s.Errorf("Ignoring invalid value for SnippetRangeTolerance: %v", *newSettings.SnippetRangeTolerance)
+		}
 	}
 	if newSettings.HonourFileExts != nil {
 		updatedConfig.honourFileExts = *newSettings.HonourFileExts

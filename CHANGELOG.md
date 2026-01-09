@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added scanoss.json scanning config support.
 - Added new server-side configuration parameters for scanning tune-up.
+  - rankingAllowed
+  - rankingEnabled
+  - rankingThreshold
+  - minSnippetHits
+  - minSnippetLines
+  - snippetRangeTolerance
+  - honourFileExts
 
 ## [1.5.2] - 2025-11-07
 ### Added
