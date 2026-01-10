@@ -198,9 +198,9 @@ func (s *E2EScanningSuite) TestScanSettingsHeader() {
 			}
 			req.Header.Set("Content-Type", w.FormDataContentType())
 
-			// Set the scanoss-scan-settings header if provided
+			// Set the Scanoss-Settings header if provided
 			if len(test.scanSettingsB64) > 0 {
-				req.Header.Set("scanoss-scan-settings", test.scanSettingsB64)
+				req.Header.Set("Scanoss-Settings", test.scanSettingsB64)
 			}
 
 			resp, err := c.Do(req)
