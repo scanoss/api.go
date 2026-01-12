@@ -24,7 +24,9 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron"
+	"github.com/hashicorp/go-version"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"go.uber.org/zap"
 )
 
 // Structure for parsing KB & Engine version from scan response.
@@ -41,6 +43,32 @@ type matchStructure []struct {
 
 var kbDetails string     // KB Details JSON string
 var engineVersion string // Version of the engine in use
+
+// validateEngineVersion validates that the current engine version meets the minimum requirement.
+// Logs a critical error if the version is below minimum, or an info message if it meets the requirement.
+func validateEngineVersion(zs *zap.SugaredLogger, currentEngineVersion, minEngineVersion string) {
+	if minEngineVersion == "" || currentEngineVersion == "unknown" || currentEngineVersion == "" {
+		return
+	}
+
+	currentVersion, err := version.NewVersion(currentEngineVersion)
+	if err != nil {
+		zs.Errorf("CRITICAL: Failed to parse current engine version '%s': %v", currentEngineVersion, err)
+		return
+	}
+
+	minVersion, err := version.NewVersion(minEngineVersion)
+	if err != nil {
+		zs.Errorf("CRITICAL: Failed to parse minimum engine version '%s': %v", minEngineVersion, err)
+		return
+	}
+
+	if currentVersion.LessThan(minVersion) {
+		zs.Errorf("CRITICAL: Engine version '%s' is below the minimum required version '%s'", currentEngineVersion, minEngineVersion)
+	} else {
+		zs.Infof("Engine version '%s' meets minimum requirement '%s'", currentEngineVersion, minEngineVersion)
+	}
+}
 
 // SetupKBDetailsCron sets up a background cron to update the KB version once an hour.
 func (s APIService) SetupKBDetailsCron() {
@@ -122,6 +150,7 @@ func (s APIService) loadKBDetails() {
 		if len(ms) > 0 {
 			kbDetails = fmt.Sprintf(`{"kb_version": { "monthly": "%v", "daily": "%v"}}`, ms[0].Server.KbVersion.Monthly, ms[0].Server.KbVersion.Daily)
 			engineVersion = ms[0].Server.Version
+			validateEngineVersion(zs, engineVersion, s.config.Scanning.MinEngineVersion)
 		}
 	}
 }
