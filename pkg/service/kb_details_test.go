@@ -95,7 +95,6 @@ func TestEngineVersionBelowMinimum(t *testing.T) {
 	myConfig := setupConfig(t)
 	myConfig.App.Trace = true
 	myConfig.Scanning.LoadKbDetails = true
-	myConfig.Scanning.MinEngineVersion = "5.4.19"
 
 	apiService := NewAPIService(myConfig)
 

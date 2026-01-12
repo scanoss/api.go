@@ -38,8 +38,9 @@ import (
 )
 
 const (
-	sbomIdentify  = "identify"
-	sbomBlackList = "blacklist"
+	sbomIdentify     = "identify"  // SBOM type to identify components
+	sbomBlackList    = "blacklist" // SBOM type to blacklist components
+	minEngineVersion = "5.4.20"    // Minimum required engine version
 )
 
 var fileRegex = regexp.MustCompile(`^\w+,(\d+),.+`) // regex to parse file size from request

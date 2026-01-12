@@ -150,7 +150,7 @@ func (s APIService) loadKBDetails() {
 		if len(ms) > 0 {
 			kbDetails = fmt.Sprintf(`{"kb_version": { "monthly": "%v", "daily": "%v"}}`, ms[0].Server.KbVersion.Monthly, ms[0].Server.KbVersion.Daily)
 			engineVersion = ms[0].Server.Version
-			validateEngineVersion(zs, engineVersion, s.config.Scanning.MinEngineVersion)
+			validateEngineVersion(zs, engineVersion, minEngineVersion)
 		}
 	}
 }

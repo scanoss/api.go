@@ -55,22 +55,21 @@ type ServerConfig struct {
 		OltpExporter string `env:"OTEL_EXPORTER_OLTP"` // OTEL OLTP exporter (default 0.0.0.0:4317)
 	}
 	Scanning struct {
-		WfpLoc           string `env:"SCAN_WFP_TMP"`               // specific location to write temporary WFP files to
-		ScanBinary       string `env:"SCAN_BINARY"`                // Binary to use for scanning
-		ScanKbName       string `env:"SCAN_KB_NAME"`               // KB name passed as "-n" parameter to the scanoss command
-		ScanDebug        bool   `env:"SCAN_DEBUG"`                 // true/false
-		ScanFlags        int    `env:"SCAN_ENGINE_FLAGS"`          // Default flags to use when scanning
-		ScanTimeout      int    `env:"SCAN_ENGINE_TIMEOUT"`        // timeout for waiting for the scan engine to respond
-		WfpGrouping      int    `env:"SCAN_WFP_GROUPING"`          // number of WFP to group into a single scan engine command
-		Workers          int    `env:"SCAN_WORKERS"`               // Number of concurrent workers to use per scan request
-		TmpFileDelete    bool   `env:"SCAN_TMP_DELETE"`            // true/false
-		KeepFailedWfps   bool   `env:"SCAN_KEEP_FAILED_WFP"`       // true/false
-		ScanningURL      string `env:"SCANOSS_API_URL"`            // URL to present back in API responses - default https://osskb.org/api
-		HPSMEnabled      bool   `env:"SCAN_HPSM_ENABLED"`          // Enable HPSM (High Precision Snippet Matching) or not (default true)
-		FileContents     bool   `env:"SCANOSS_FILE_CONTENTS"`      // Show matched file URL in scan results (default true)
-		FileContentsURL  string `env:"SCANOSS_FILE_CONTENTS_URL"`  // Explicit file contents URL to use for the engine
-		LoadKbDetails    bool   `env:"SCANOSS_LOAD_KB_DETAILS"`    // Load the version of the KB into the service for reporting
-		MinEngineVersion string `env:"SCANOSS_MIN_ENGINE_VERSION"` // Minimum required engine version
+		WfpLoc          string `env:"SCAN_WFP_TMP"`              // specific location to write temporary WFP files to
+		ScanBinary      string `env:"SCAN_BINARY"`               // Binary to use for scanning
+		ScanKbName      string `env:"SCAN_KB_NAME"`              // KB name passed as "-n" parameter to the scanoss command
+		ScanDebug       bool   `env:"SCAN_DEBUG"`                // true/false
+		ScanFlags       int    `env:"SCAN_ENGINE_FLAGS"`         // Default flags to use when scanning
+		ScanTimeout     int    `env:"SCAN_ENGINE_TIMEOUT"`       // timeout for waiting for the scan engine to respond
+		WfpGrouping     int    `env:"SCAN_WFP_GROUPING"`         // number of WFP to group into a single scan engine command
+		Workers         int    `env:"SCAN_WORKERS"`              // Number of concurrent workers to use per scan request
+		TmpFileDelete   bool   `env:"SCAN_TMP_DELETE"`           // true/false
+		KeepFailedWfps  bool   `env:"SCAN_KEEP_FAILED_WFP"`      // true/false
+		ScanningURL     string `env:"SCANOSS_API_URL"`           // URL to present back in API responses - default https://osskb.org/api
+		HPSMEnabled     bool   `env:"SCAN_HPSM_ENABLED"`         // Enable HPSM (High Precision Snippet Matching) or not (default true)
+		FileContents    bool   `env:"SCANOSS_FILE_CONTENTS"`     // Show matched file URL in scan results (default true)
+		FileContentsURL string `env:"SCANOSS_FILE_CONTENTS_URL"` // Explicit file contents URL to use for the engine
+		LoadKbDetails   bool   `env:"SCANOSS_LOAD_KB_DETAILS"`   // Load the version of the KB into the service for reporting
 		// component selection
 		RankingAllowed   bool `env:"SCANOSS_RANKING_ALLOWED"`   // Allow ranking to be used in scan results
 		RankingEnabled   bool `env:"SCANOSS_RANKING_ENABLED"`   // Enable ranking in scan results
@@ -130,7 +129,6 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Telemetry.OltpExporter = "0.0.0.0:4317" // Default OTEL OLTP gRPC Exporter endpoint
 	cfg.Scanning.FileContents = true            // Matched File URL response enabled (true) by default
 	cfg.Scanning.LoadKbDetails = true           // Load the KB details on a scheduler
-	cfg.Scanning.MinEngineVersion = "5.4.20"    // Minimum required engine version
 	// component selection
 	cfg.Scanning.RankingAllowed = true  // Allow ranking to be used in scan results
 	cfg.Scanning.RankingEnabled = false // Disable ranking in scan results by default
