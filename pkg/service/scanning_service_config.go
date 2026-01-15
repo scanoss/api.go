@@ -148,8 +148,7 @@ func applyDirectParameters(s *zap.SugaredLogger, config *ScanningServiceConfig, 
 //     "ranking_threshold": int,        // Ranking threshold value (requires ranking_allowed=true)
 //     "min_snippet_hits": int,         // Minimum snippet hits to consider a match
 //     "min_snippet_lines": int,        // Minimum snippet lines to consider a match
-//     "snippet_range_tolerance": int,  // Snippet range tolerance for matching
-//     "honour_file_exts": bool         // Honour file extensions when filtering snippets
+//     "honour_file_exts": bool         // Honor file extensions when filtering snippets
 //     }
 //
 // Returns:

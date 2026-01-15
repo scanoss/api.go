@@ -61,7 +61,7 @@ func validateEngineVersion(zs *zap.SugaredLogger, currentEngineVersion, minEngin
 		return
 	}
 	if currentVersion.LessThan(minVersion) {
-		zs.Errorf("Engine version '%s' is below the minimum required version '%s'.Some features may not work as expected.", currentEngineVersion, minEngineVersion)
+		zs.Errorf("Engine version '%s' is below the minimum required version '%s'. Some features may not work as expected.", currentEngineVersion, minEngineVersion)
 	} else {
 		zs.Infof("Engine version '%s' meets minimum requirement '%s'", currentEngineVersion, minEngineVersion)
 	}
