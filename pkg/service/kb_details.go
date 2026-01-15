@@ -50,21 +50,18 @@ func validateEngineVersion(zs *zap.SugaredLogger, currentEngineVersion, minEngin
 	if minEngineVersion == "" || currentEngineVersion == "unknown" || currentEngineVersion == "" {
 		return
 	}
-
 	currentVersion, err := version.NewVersion(currentEngineVersion)
 	if err != nil {
-		zs.Errorf("CRITICAL: Failed to parse current engine version '%s': %v", currentEngineVersion, err)
+		zs.Errorf("Failed to parse current engine version '%s': %v", currentEngineVersion, err)
 		return
 	}
-
 	minVersion, err := version.NewVersion(minEngineVersion)
 	if err != nil {
-		zs.Errorf("CRITICAL: Failed to parse minimum engine version '%s': %v", minEngineVersion, err)
+		zs.Errorf("Failed to parse minimum engine version '%s': %v", minEngineVersion, err)
 		return
 	}
-
 	if currentVersion.LessThan(minVersion) {
-		zs.Errorf("CRITICAL: Engine version '%s' is below the minimum required version '%s'", currentEngineVersion, minEngineVersion)
+		zs.Errorf("Engine version '%s' is below the minimum required version '%s'.Some features may not work as expected.", currentEngineVersion, minEngineVersion)
 	} else {
 		zs.Infof("Engine version '%s' meets minimum requirement '%s'", currentEngineVersion, minEngineVersion)
 	}
@@ -107,7 +104,7 @@ func (s APIService) KBDetails(w http.ResponseWriter, r *http.Request) {
 
 // loadKBDetails attempts to scan a file to load the latest KB details from the server.
 func (s APIService) loadKBDetails() {
-	zs := sugaredLogger(context.TODO()) // Setup logger without context
+	zs := sugaredLogger(context.TODO()) // Set up a logger without context
 	zs.Debugf("Loading latest KB details...")
 	if len(engineVersion) == 0 {
 		engineVersion = "unknown"

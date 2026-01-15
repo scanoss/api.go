@@ -149,7 +149,7 @@ func applyDirectParameters(s *zap.SugaredLogger, config *ScanningServiceConfig, 
 //     "min_snippet_hits": int,         // Minimum snippet hits to consider a match
 //     "min_snippet_lines": int,        // Minimum snippet lines to consider a match
 //     "snippet_range_tolerance": int,  // Snippet range tolerance for matching
-//     "honour_file_exts": bool         // Honor file extensions when filtering snippets
+//     "honour_file_exts": bool         // Honour file extensions when filtering snippets
 //     }
 //
 // Returns:
@@ -166,7 +166,6 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 		return ScanningServiceConfig{}, fmt.Errorf("default server scanning service config is undefined")
 	}
 	updatedConfig := *currentConfig
-
 	var newSettings scanSettings
 	if len(inputSettings) > 0 {
 		if err := json.Unmarshal(inputSettings, &newSettings); err != nil {
@@ -174,7 +173,6 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 			return updatedConfig, fmt.Errorf("error unmarshalling scanning service config requested by client: %v", err)
 		}
 	}
-
 	applyRankingSettings(s, &updatedConfig, &newSettings)
 	if invalidSettings := applySnippetSettings(s, &updatedConfig, &newSettings); len(invalidSettings) > 0 {
 		s.Errorf("Ignoring invalid values for settings: %v", invalidSettings)
