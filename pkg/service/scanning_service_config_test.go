@@ -33,7 +33,6 @@ func TestDefaultScanningServiceConfig(t *testing.T) {
 	serverConfig.Scanning.RankingThreshold = 50
 	serverConfig.Scanning.MinSnippetHits = 10
 	serverConfig.Scanning.MinSnippetLines = 5
-	serverConfig.Scanning.SnippetRangeTol = 3
 	serverConfig.Scanning.HonourFileExts = true
 
 	config := DefaultScanningServiceConfig(serverConfig)
@@ -59,9 +58,6 @@ func TestDefaultScanningServiceConfig(t *testing.T) {
 	if config.minSnippetLines != 5 {
 		t.Errorf("Expected MinSnippetLines to be 5, got %d", config.minSnippetLines)
 	}
-	if config.snippetRangeTolerance != 3 {
-		t.Errorf("Expected SnippetRangeTol to be 3, got %d", config.snippetRangeTolerance)
-	}
 	if !config.honourFileExts {
 		t.Error("Expected HonourFileExts to be true")
 	}
@@ -73,13 +69,12 @@ func TestUpdateScanningServiceConfigDTO_JSONSettings(t *testing.T) {
 	sugar := logger.Sugar()
 
 	baseConfig := ScanningServiceConfig{
-		rankingAllowed:        true,
-		rankingEnabled:        false,
-		rankingThreshold:      0,
-		minSnippetHits:        0,
-		minSnippetLines:       0,
-		snippetRangeTolerance: 0,
-		honourFileExts:        false,
+		rankingAllowed:   true,
+		rankingEnabled:   false,
+		rankingThreshold: 0,
+		minSnippetHits:   0,
+		minSnippetLines:  0,
+		honourFileExts:   false,
 	}
 
 	// Test with multiple JSON settings
@@ -87,7 +82,6 @@ func TestUpdateScanningServiceConfigDTO_JSONSettings(t *testing.T) {
 	rankingThreshold := 75
 	minSnippetHits := 20
 	minSnippetLines := 15
-	snippetRangeTol := 10
 	honourFileExts := true
 
 	settings := struct {
@@ -95,14 +89,12 @@ func TestUpdateScanningServiceConfigDTO_JSONSettings(t *testing.T) {
 		RankingThreshold *int  `json:"ranking_threshold,omitempty"`
 		MinSnippetHits   *int  `json:"min_snippet_hits,omitempty"`
 		MinSnippetLines  *int  `json:"min_snippet_lines,omitempty"`
-		SnippetRangeTol  *int  `json:"snippet_range_tolerance,omitempty"`
 		HonourFileExts   *bool `json:"honour_file_exts,omitempty"`
 	}{
 		RankingEnabled:   &rankingEnabled,
 		RankingThreshold: &rankingThreshold,
 		MinSnippetHits:   &minSnippetHits,
 		MinSnippetLines:  &minSnippetLines,
-		SnippetRangeTol:  &snippetRangeTol,
 		HonourFileExts:   &honourFileExts,
 	}
 
@@ -127,9 +119,6 @@ func TestUpdateScanningServiceConfigDTO_JSONSettings(t *testing.T) {
 	}
 	if result.minSnippetLines != 15 {
 		t.Errorf("Expected MinSnippetLines to be 15, got %d", result.minSnippetLines)
-	}
-	if result.snippetRangeTolerance != 10 {
-		t.Errorf("Expected SnippetRangeTol to be 10, got %d", result.snippetRangeTolerance)
 	}
 	if !result.honourFileExts {
 		t.Error("Expected HonourFileExts to be true")

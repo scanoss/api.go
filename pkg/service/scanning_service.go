@@ -433,10 +433,6 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	if config.minSnippetLines > 0 {
 		args = append(args, fmt.Sprintf("--min-snippet-lines=%d", config.minSnippetLines))
 	}
-	// Snippet range tolerance
-	if config.snippetRangeTolerance > 0 {
-		args = append(args, fmt.Sprintf("--range-tolerance=%d", config.snippetRangeTolerance))
-	}
 	// Honour file extensions (not yet implemented in scanoss engine)
 	if !config.honourFileExts {
 		args = append(args, "--ignore-file-ext")

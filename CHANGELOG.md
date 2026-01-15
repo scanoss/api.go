@@ -17,7 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - rankingThreshold
   - minSnippetHits
   - minSnippetLines
-  - snippetRangeTolerance
   - honourFileExts
 
 ## [1.5.2] - 2025-11-07

@@ -48,7 +48,7 @@ func (s *E2EScanningSuite) TestScanning() {
 			filename:    "../pkg/service/tests/fingers.wfp",
 			shortName:   "fingers.wfp",
 			extraFields: map[string]string{"db_name": "test_kb"},
-			want:        http.StatusOK, // Engine handles invalid KB names gracefully with fallback
+			want:        http.StatusInternalServerError, // Engine returns error for invalid KB names
 		},
 		{
 			name:        "Test Empty WFP",
