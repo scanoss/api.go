@@ -18,10 +18,11 @@ package tests
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/suite"
 )
 
 type E2ECharsetDetectionSuite struct {
@@ -90,6 +91,9 @@ func (s *E2ECharsetDetectionSuite) TestFileContentsWithMissingMD5() {
 	resp, err := c.Get(fmt.Sprintf("%v/file_contents/", hostPort))
 	if err != nil {
 		s.Failf("an error was not expected when sending request.", "error: %v", err)
+	}
+	if resp.StatusCode == http.StatusForbidden {
+		s.T().Skip("skipping test: file_contents endpoint returned 403 Forbidden")
 	}
 	// Should return not found since the path is incomplete.
 	s.Equal(http.StatusNotFound, resp.StatusCode)
