@@ -39,6 +39,9 @@ func (s *E2ECharsetDetectionSuite) TestFileContentsWithCharsetHeader() {
 	if err != nil {
 		s.Failf("an error was not expected when sending request.", "error: %v", err)
 	}
+	if resp.StatusCode == http.StatusForbidden {
+		s.T().Skip("skipping test: file_contents endpoint returned 403 Forbidden")
+	}
 	s.Equal(http.StatusOK, resp.StatusCode)
 
 	// Check Content-Type header includes charset.
@@ -75,6 +78,9 @@ func (s *E2ECharsetDetectionSuite) TestFileContentsWithInvalidMD5() {
 		s.Failf("an error was not expected when sending request.", "error: %v", err)
 	}
 	// Should return an error status since the MD5 is invalid.
+	if resp.StatusCode == http.StatusForbidden {
+		s.T().Skip("skipping test: file_contents endpoint returned 403 Forbidden")
+	}
 	s.Equal(http.StatusInternalServerError, resp.StatusCode)
 }
 

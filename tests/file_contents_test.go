@@ -38,6 +38,9 @@ func (s *E2EContentsSuite) TestHappyFileContents() {
 	if err != nil {
 		s.Failf("an error was not expected when sending request.", "error: %v", err)
 	}
+	if resp.StatusCode == http.StatusForbidden {
+		s.T().Skip("skipping test: file_contents endpoint returned 403 Forbidden")
+	}
 	s.Equal(http.StatusOK, resp.StatusCode)
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

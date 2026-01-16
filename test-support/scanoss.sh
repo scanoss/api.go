@@ -56,13 +56,16 @@ if [ "$1" == "-l" ] || [ "$2" == "-l" ] || [ "$3" == "-l" ] ; then
   exit 0
 fi
 
-# Simulate kb name validation - accept any non-empty KB name
-# If -n is provided but kb name is empty, this would be an invalid parameter format
-# The real engine accepts any KB name that exists, so we accept all non-empty names
+# Simulate kb name validation
 for arg in "$@"; do
   if [[ "$arg" == "-n" ]]; then
     # -n followed by space (separate argument) is invalid - KB name should be attached
     echo "Error: -n flag requires a KB name (use -n<name>)" >&2
+    exit 1
+  fi
+  # Check for invalid KB name (test_kb is used in tests to simulate invalid KB)
+  if [[ "$arg" == "-ntest_kb" ]]; then
+    echo "Error: KB 'test_kb' not found" >&2
     exit 1
   fi
 done

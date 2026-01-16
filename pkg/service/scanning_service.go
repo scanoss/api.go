@@ -451,7 +451,7 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 		}
 		return "", fmt.Errorf("failed to scan WFP: %v", err)
 	}
-	return string(output), nil
+	return string(output), err
 }
 
 // TestEngine tests if the SCANOSS engine is accessible and running.
