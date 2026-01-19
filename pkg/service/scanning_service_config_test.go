@@ -43,9 +43,6 @@ func TestDefaultScanningServiceConfig(t *testing.T) {
 	if config.dbName != "test-kb" {
 		t.Errorf("Expected DbName to be 'test-kb', got '%s'", config.dbName)
 	}
-	if !config.rankingAllowed {
-		t.Error("Expected RankingAllowed to be true")
-	}
 	if config.rankingEnabled {
 		t.Error("Expected RankingEnabled to be false")
 	}
@@ -68,14 +65,18 @@ func TestUpdateScanningServiceConfigDTO_JSONSettings(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	sugar := logger.Sugar()
 
+	// Create server config with allowed settings
+	serverConfig := &cfg.ServerConfig{}
+	serverConfig.Scanning.RankingAllowed = true
+	serverConfig.Scanning.MatchConfigAllowed = true
+	apiService := NewAPIService(serverConfig)
+
 	baseConfig := ScanningServiceConfig{
-		rankingAllowed:     true,
-		rankingEnabled:     false,
-		rankingThreshold:   0,
-		matchConfigAllowed: true,
-		minSnippetHits:     0,
-		minSnippetLines:    0,
-		honourFileExts:     false,
+		rankingEnabled:   false,
+		rankingThreshold: 0,
+		minSnippetHits:   0,
+		minSnippetLines:  0,
+		honourFileExts:   false,
 	}
 
 	// Test with multiple JSON settings
@@ -104,7 +105,7 @@ func TestUpdateScanningServiceConfigDTO_JSONSettings(t *testing.T) {
 		t.Fatalf("Failed to marshal JSON: %v", err)
 	}
 
-	result, err := UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
+	result, err := apiService.UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -131,8 +132,12 @@ func TestUpdateScanningServiceConfigDTO_RankingNotAllowed(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	sugar := logger.Sugar()
 
+	// Create server config with ranking NOT allowed
+	serverConfig := &cfg.ServerConfig{}
+	serverConfig.Scanning.RankingAllowed = false
+	apiService := NewAPIService(serverConfig)
+
 	baseConfig := ScanningServiceConfig{
-		rankingAllowed:   false, // Ranking not allowed
 		rankingEnabled:   false,
 		rankingThreshold: 0,
 	}
@@ -154,7 +159,7 @@ func TestUpdateScanningServiceConfigDTO_RankingNotAllowed(t *testing.T) {
 		t.Fatalf("Failed to marshal JSON: %v", err)
 	}
 
-	result, err := UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
+	result, err := apiService.UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -173,11 +178,15 @@ func TestUpdateScanningServiceConfigDTO_MatchConfigNotAllowed(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	sugar := logger.Sugar()
 
+	// Create server config with match config NOT allowed
+	serverConfig := &cfg.ServerConfig{}
+	serverConfig.Scanning.MatchConfigAllowed = false
+	apiService := NewAPIService(serverConfig)
+
 	baseConfig := ScanningServiceConfig{
-		matchConfigAllowed: false, // Match config not allowed
-		minSnippetHits:     0,
-		minSnippetLines:    0,
-		honourFileExts:     true,
+		minSnippetHits:  0,
+		minSnippetLines: 0,
+		honourFileExts:  true,
 	}
 
 	// Try to set MinSnippetHits
@@ -194,7 +203,7 @@ func TestUpdateScanningServiceConfigDTO_MatchConfigNotAllowed(t *testing.T) {
 		t.Fatalf("Failed to marshal JSON: %v", err)
 	}
 
-	_, err = UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
+	_, err = apiService.UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
 
 	// Should return error because MatchConfigAllowed is false
 	if err == nil {
@@ -207,6 +216,9 @@ func TestUpdateScanningServiceConfigDTO_LegacyParameters(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	sugar := logger.Sugar()
 
+	serverConfig := &cfg.ServerConfig{}
+	apiService := NewAPIService(serverConfig)
+
 	baseConfig := ScanningServiceConfig{
 		flags:    0,
 		dbName:   "default-db",
@@ -214,7 +226,7 @@ func TestUpdateScanningServiceConfigDTO_LegacyParameters(t *testing.T) {
 		sbomFile: "",
 	}
 
-	result, err := UpdateScanningServiceConfigDTO(sugar, &baseConfig,
+	result, err := apiService.UpdateScanningServiceConfigDTO(sugar, &baseConfig,
 		"123",         // flags
 		"identify",    // scanType
 		"assets.json", // sbom
@@ -243,13 +255,16 @@ func TestUpdateScanningServiceConfigDTO_InvalidInput(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	sugar := logger.Sugar()
 
+	serverConfig := &cfg.ServerConfig{}
+	apiService := NewAPIService(serverConfig)
+
 	baseConfig := ScanningServiceConfig{
 		flags:          42,
 		minSnippetHits: 10,
 	}
 
 	// Test with invalid flags (should not return error, just keep original value)
-	result, err := UpdateScanningServiceConfigDTO(sugar, &baseConfig,
+	result, err := apiService.UpdateScanningServiceConfigDTO(sugar, &baseConfig,
 		"not-a-number", "", "", "", nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
@@ -261,7 +276,7 @@ func TestUpdateScanningServiceConfigDTO_InvalidInput(t *testing.T) {
 
 	// Test with invalid JSON (should return error)
 	invalidJSON := []byte("{invalid json}")
-	_, err = UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", invalidJSON)
+	_, err = apiService.UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", invalidJSON)
 
 	if err == nil {
 		t.Error("Expected error for invalid JSON input")
@@ -273,14 +288,18 @@ func TestUpdateScanningServiceConfigDTO_CombinedUpdate(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	sugar := logger.Sugar()
 
+	// Create server config with allowed settings
+	serverConfig := &cfg.ServerConfig{}
+	serverConfig.Scanning.RankingAllowed = true
+	serverConfig.Scanning.MatchConfigAllowed = true
+	apiService := NewAPIService(serverConfig)
+
 	baseConfig := ScanningServiceConfig{
-		flags:              0,
-		dbName:             "default-db",
-		rankingAllowed:     true,
-		rankingEnabled:     false,
-		rankingThreshold:   0,
-		matchConfigAllowed: true,
-		minSnippetHits:     0,
+		flags:            0,
+		dbName:           "default-db",
+		rankingEnabled:   false,
+		rankingThreshold: 0,
+		minSnippetHits:   0,
 	}
 
 	// JSON settings
@@ -303,7 +322,7 @@ func TestUpdateScanningServiceConfigDTO_CombinedUpdate(t *testing.T) {
 		t.Fatalf("Failed to marshal JSON: %v", err)
 	}
 
-	result, err := UpdateScanningServiceConfigDTO(sugar, &baseConfig,
+	result, err := apiService.UpdateScanningServiceConfigDTO(sugar, &baseConfig,
 		"256",       // flags
 		"blacklist", // scanType
 		"",          // sbom
@@ -341,7 +360,10 @@ func TestUpdateScanningServiceConfigDTO_NilConfig(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
 	sugar := logger.Sugar()
 
-	_, err := UpdateScanningServiceConfigDTO(sugar, nil, "", "", "", "", nil)
+	serverConfig := &cfg.ServerConfig{}
+	apiService := NewAPIService(serverConfig)
+
+	_, err := apiService.UpdateScanningServiceConfigDTO(sugar, nil, "", "", "", "", nil)
 
 	if err == nil {
 		t.Error("Expected error when currentConfig is nil")
