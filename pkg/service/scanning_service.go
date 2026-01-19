@@ -43,7 +43,7 @@ const (
 	minEngineVersion = "5.4.20"    // Minimum required engine version
 )
 
-var fileRegex = regexp.MustCompile(`^\w+,(\d+),.+`) // regex to parse file size from request
+var fileRegex = regexp.MustCompile(`^\w+,(\d+),.+`) // regex to parse file size from the request
 
 // ScanDirect handles WFP scanning requests from a client.
 func (s APIService) ScanDirect(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +59,7 @@ func (s APIService) ScanDirect(w http.ResponseWriter, r *http.Request) {
 	} else {
 		logContext = requestContext(r.Context(), reqID, "", "")
 	}
-	zs := sugaredLogger(logContext) // Setup logger with context
+	zs := sugaredLogger(logContext) // Set up the logger with context
 	wfpCount := s.scanDirect(w, r, zs, logContext, span)
 	elapsedTime := time.Since(requestStartTime).Milliseconds() // Time taken to run the scan
 	if s.config.Telemetry.Enabled {
@@ -119,7 +119,7 @@ func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.S
 		zs.Debugf("Stored SBOM (%v) in %v", scanConfig.sbomType, sbomFilename)
 	}
 	wfps := strings.Split(string(contentsTrimmed), "file=")
-	wfpCount := int64(len(wfps) - 1) // First entry in the array is empty (hence the -1)
+	wfpCount := int64(len(wfps) - 1) // The first entry in the array is empty (hence the -1)
 	if wfpCount <= 0 {
 		zs.Errorf("No WFP (file=...) entries found to scan")
 		http.Error(w, "ERROR no WFP file contents (file=...) supplied", http.StatusBadRequest)
@@ -195,6 +195,10 @@ func (s APIService) getConfigFromRequest(r *http.Request, zs *zap.SugaredLogger)
 	// Decode scan settings from base64 if provided
 	var decoded []byte
 	if len(scanSettings) > 0 {
+		if !s.config.Scanning.MatchConfigAllowed {
+			zs.Errorf("Scan settings provided in header, but match config is not allowed")
+			return scanConfig, fmt.Errorf("scan settings provided in header, but match config is not allowed")
+		}
 		var err error
 		decoded, err = base64.StdEncoding.DecodeString(scanSettings)
 		if err != nil {
@@ -204,7 +208,7 @@ func (s APIService) getConfigFromRequest(r *http.Request, zs *zap.SugaredLogger)
 			zs.Debugf("Decoded scan settings: %s", string(decoded))
 		}
 	}
-	return UpdateScanningServiceConfigDTO(zs, &scanConfig, flags, scanType, sbom, dbName, decoded)
+	return s.UpdateScanningServiceConfigDTO(zs, &scanConfig, flags, scanType, sbom, dbName, decoded)
 }
 
 // writeSbomFile writes the given string into an SBOM temporary file.
