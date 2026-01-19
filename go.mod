@@ -7,6 +7,7 @@ require (
 	github.com/golobby/config/v3 v3.4.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
+	github.com/hashicorp/go-version v1.8.0
 	github.com/jpillora/ipfilter v1.2.9
 	github.com/scanoss/zap-logging-helper v0.4.0
 	github.com/stretchr/testify v1.11.1
@@ -35,7 +36,6 @@ require (
 	github.com/golobby/dotenv v1.3.2 // indirect
 	github.com/golobby/env/v2 v2.2.4 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.4 // indirect
-	github.com/hashicorp/go-version v1.8.0 // indirect
 	github.com/phuslu/iploc v1.0.20260115 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
