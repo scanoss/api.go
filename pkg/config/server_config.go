@@ -75,9 +75,10 @@ type ServerConfig struct {
 		RankingEnabled   bool `env:"SCANOSS_RANKING_ENABLED"`   // Enable ranking in scan results
 		RankingThreshold int  `env:"SCANOSS_RANKING_THRESHOLD"` // Ranking threshold to use
 		// snippet matching
-		MinSnippetHits  int  `env:"SCANOSS_MIN_SNIPPET_HITS"`  // Minimum snippet hits to consider a snippet match
-		MinSnippetLines int  `env:"SCANOSS_MIN_SNIPPET_LINES"` // Minimum snippet lines to consider a snippet match
-		HonourFileExts  bool `env:"SCANOSS_HONOUR_FILE_EXTS"`  // Honour file extensions to filter snippet matches
+		MatchConfigAllowed bool `env:"SCANOSS_MATCH_CONFIG_ALLOWED"` // Allow clients to configure match settings (MinSnippetHits, MinSnippetLines, HonourFileExts)
+		MinSnippetHits     int  `env:"SCANOSS_MIN_SNIPPET_HITS"`     // Minimum snippet hits to consider a snippet match
+		MinSnippetLines    int  `env:"SCANOSS_MIN_SNIPPET_LINES"`    // Minimum snippet lines to consider a snippet match
+		HonourFileExts     bool `env:"SCANOSS_HONOUR_FILE_EXTS"`     // Honour file extensions to filter snippet matches
 	}
 	TLS struct {
 		CertFile string `env:"SCAN_TLS_CERT"`   // TLS Certificate
@@ -133,8 +134,9 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Scanning.RankingEnabled = false // Disable ranking in scan results by default
 	cfg.Scanning.RankingThreshold = 0   // Ranking threshold default (everything is accepted)
 	// snippet matching
-	cfg.Scanning.MinSnippetHits = 0  // Lets the engine decide on minimum snippet hits based on the file total lines
-	cfg.Scanning.MinSnippetLines = 0 // Lets the engine decide on minimum snippet hits on the file total lines
+	cfg.Scanning.MatchConfigAllowed = false // Disallow clients from configuring match settings by default
+	cfg.Scanning.MinSnippetHits = 0         // Lets the engine decide on minimum snippet hits based on the file total lines
+	cfg.Scanning.MinSnippetLines = 0        // Lets the engine decide on minimum snippet hits on the file total lines
 	cfg.Scanning.HonourFileExts = true
 }
 

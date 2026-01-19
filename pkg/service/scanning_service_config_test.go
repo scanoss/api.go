@@ -69,12 +69,13 @@ func TestUpdateScanningServiceConfigDTO_JSONSettings(t *testing.T) {
 	sugar := logger.Sugar()
 
 	baseConfig := ScanningServiceConfig{
-		rankingAllowed:   true,
-		rankingEnabled:   false,
-		rankingThreshold: 0,
-		minSnippetHits:   0,
-		minSnippetLines:  0,
-		honourFileExts:   false,
+		rankingAllowed:     true,
+		rankingEnabled:     false,
+		rankingThreshold:   0,
+		matchConfigAllowed: true,
+		minSnippetHits:     0,
+		minSnippetLines:    0,
+		honourFileExts:     false,
 	}
 
 	// Test with multiple JSON settings
@@ -167,6 +168,40 @@ func TestUpdateScanningServiceConfigDTO_RankingNotAllowed(t *testing.T) {
 	}
 }
 
+// TestUpdateScanningServiceConfigDTO_MatchConfigNotAllowed tests that match config settings are rejected when not allowed
+func TestUpdateScanningServiceConfigDTO_MatchConfigNotAllowed(t *testing.T) {
+	logger, _ := zap.NewDevelopment()
+	sugar := logger.Sugar()
+
+	baseConfig := ScanningServiceConfig{
+		matchConfigAllowed: false, // Match config not allowed
+		minSnippetHits:     0,
+		minSnippetLines:    0,
+		honourFileExts:     true,
+	}
+
+	// Try to set MinSnippetHits
+	minSnippetHits := 10
+
+	settings := struct {
+		MinSnippetHits *int `json:"min_snippet_hits,omitempty"`
+	}{
+		MinSnippetHits: &minSnippetHits,
+	}
+
+	jsonBytes, err := json.Marshal(settings)
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	_, err = UpdateScanningServiceConfigDTO(sugar, &baseConfig, "", "", "", "", jsonBytes)
+
+	// Should return error because MatchConfigAllowed is false
+	if err == nil {
+		t.Error("Expected error when MinSnippetHits is set and MatchConfigAllowed is false")
+	}
+}
+
 // TestUpdateScanningServiceConfigDTO_LegacyParameters tests updating legacy string parameters
 func TestUpdateScanningServiceConfigDTO_LegacyParameters(t *testing.T) {
 	logger, _ := zap.NewDevelopment()
@@ -239,12 +274,13 @@ func TestUpdateScanningServiceConfigDTO_CombinedUpdate(t *testing.T) {
 	sugar := logger.Sugar()
 
 	baseConfig := ScanningServiceConfig{
-		flags:            0,
-		dbName:           "default-db",
-		rankingAllowed:   true,
-		rankingEnabled:   false,
-		rankingThreshold: 0,
-		minSnippetHits:   0,
+		flags:              0,
+		dbName:             "default-db",
+		rankingAllowed:     true,
+		rankingEnabled:     false,
+		rankingThreshold:   0,
+		matchConfigAllowed: true,
+		minSnippetHits:     0,
 	}
 
 	// JSON settings

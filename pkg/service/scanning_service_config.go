@@ -26,30 +26,32 @@ import (
 )
 
 type ScanningServiceConfig struct {
-	flags            int
-	sbomType         string
-	sbomFile         string
-	dbName           string
-	rankingAllowed   bool
-	rankingEnabled   bool
-	rankingThreshold int
-	minSnippetHits   int
-	minSnippetLines  int
-	honourFileExts   bool
+	flags              int
+	sbomType           string
+	sbomFile           string
+	dbName             string
+	rankingAllowed     bool
+	rankingEnabled     bool
+	rankingThreshold   int
+	matchConfigAllowed bool
+	minSnippetHits     int
+	minSnippetLines    int
+	honourFileExts     bool
 }
 
 func DefaultScanningServiceConfig(serverDefaultConfig *cfg.ServerConfig) ScanningServiceConfig {
 	return ScanningServiceConfig{
-		flags:            serverDefaultConfig.Scanning.ScanFlags,
-		sbomType:         "",
-		sbomFile:         "",
-		dbName:           serverDefaultConfig.Scanning.ScanKbName,
-		rankingAllowed:   serverDefaultConfig.Scanning.RankingAllowed,
-		rankingEnabled:   serverDefaultConfig.Scanning.RankingEnabled,
-		rankingThreshold: serverDefaultConfig.Scanning.RankingThreshold,
-		minSnippetHits:   serverDefaultConfig.Scanning.MinSnippetHits,
-		minSnippetLines:  serverDefaultConfig.Scanning.MinSnippetLines,
-		honourFileExts:   serverDefaultConfig.Scanning.HonourFileExts,
+		flags:              serverDefaultConfig.Scanning.ScanFlags,
+		sbomType:           "",
+		sbomFile:           "",
+		dbName:             serverDefaultConfig.Scanning.ScanKbName,
+		rankingAllowed:     serverDefaultConfig.Scanning.RankingAllowed,
+		rankingEnabled:     serverDefaultConfig.Scanning.RankingEnabled,
+		rankingThreshold:   serverDefaultConfig.Scanning.RankingThreshold,
+		matchConfigAllowed: serverDefaultConfig.Scanning.MatchConfigAllowed,
+		minSnippetHits:     serverDefaultConfig.Scanning.MinSnippetHits,
+		minSnippetLines:    serverDefaultConfig.Scanning.MinSnippetLines,
+		honourFileExts:     serverDefaultConfig.Scanning.HonourFileExts,
 	}
 }
 
@@ -80,7 +82,13 @@ func applyRankingSettings(s *zap.SugaredLogger, config *ScanningServiceConfig, s
 }
 
 // applySnippetSettings updates snippet-related configuration and returns invalid setting names.
-func applySnippetSettings(s *zap.SugaredLogger, config *ScanningServiceConfig, settings *scanSettings) []string {
+// Returns an error if match config settings are requested but not allowed.
+func applySnippetSettings(s *zap.SugaredLogger, config *ScanningServiceConfig, settings *scanSettings) ([]string, error) {
+	matchConfigRequested := settings.MinSnippetHits != nil || settings.MinSnippetLines != nil || settings.HonourFileExts != nil
+	if matchConfigRequested && !config.matchConfigAllowed {
+		s.Errorf("Match config settings (MinSnippetHits, MinSnippetLines, HonourFileExts) rejected as MatchConfigAllowed is false")
+		return nil, fmt.Errorf("match config settings rejected: MatchConfigAllowed is disabled")
+	}
 	var invalidSettings []string
 	if settings.MinSnippetHits != nil {
 		if *settings.MinSnippetHits >= 0 {
@@ -102,7 +110,7 @@ func applySnippetSettings(s *zap.SugaredLogger, config *ScanningServiceConfig, s
 		config.honourFileExts = *settings.HonourFileExts
 		s.Debugf("Updated HonourFileExts to %v", config.honourFileExts)
 	}
-	return invalidSettings
+	return invalidSettings, nil
 }
 
 // applyDirectParameters updates configuration from direct string parameters.
@@ -173,7 +181,11 @@ func UpdateScanningServiceConfigDTO(s *zap.SugaredLogger, currentConfig *Scannin
 		}
 	}
 	applyRankingSettings(s, &updatedConfig, &newSettings)
-	if invalidSettings := applySnippetSettings(s, &updatedConfig, &newSettings); len(invalidSettings) > 0 {
+	invalidSettings, err := applySnippetSettings(s, &updatedConfig, &newSettings)
+	if err != nil {
+		return updatedConfig, err
+	}
+	if len(invalidSettings) > 0 {
 		s.Errorf("Ignoring invalid values for settings: %v", invalidSettings)
 	}
 	applyDirectParameters(s, &updatedConfig, flags, scanType, sbom, dbName)
