@@ -8,11 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 
-## [1.6.0] - 2025-12-26
+## [1.6.0] - 2026-01-20
 ### Added
 - Added scanoss.json scanning config support.
 - Added new server-side configuration parameters for scanning tune-up.
-  - matchConfigAllowed
   - rankingAllowed
   - rankingEnabled
   - rankingThreshold
