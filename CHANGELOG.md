@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 
+## [1.6.0] - 2026-01-20
+### Added
+- Added scanoss.json scanning config support.
+- Added new server-side configuration parameters for scanning tune-up.
+  - rankingAllowed
+  - rankingEnabled
+  - rankingThreshold
+  - minSnippetHits
+  - minSnippetLines
+  - honourFileExts
+
 ## [1.5.2] - 2025-11-07
 ### Added
 - Added Custom Contents URL support (`SCANOSS_FILE_CONTENTS_URL`)
@@ -161,3 +172,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.5.0]: https://github.com/scanoss/api.go/compare/v1.4.5...v1.5.0
 [1.5.1]: https://github.com/scanoss/api.go/compare/v1.5.0...v1.5.1
 [1.5.2]: https://github.com/scanoss/api.go/compare/v1.5.1...v1.5.2
+[1.6.0]: https://github.com/scanoss/api.go/compare/v1.5.2...v1.6.0

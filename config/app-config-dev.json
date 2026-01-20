@@ -9,6 +9,14 @@
   "Scanning": {
     "ScanBinary": "./test-support/scanoss.sh",
     "ScanningURL": "http://localhost:5443",
-    "TmpFileDelete": true
+    "TmpFileDelete": true,
+    "ScanKbName": "oss",
+    "MatchConfigAllowed": true,
+    "RankingAllowed": true,
+    "RankingEnabled": false,
+    "RankingThreshold": 0,
+    "MinSnippetHits": 0,
+    "MinSnippetLines": 0,
+    "HonourFileExts": true
   }
 }

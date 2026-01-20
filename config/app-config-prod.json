@@ -32,7 +32,14 @@
     "KeepFailedWfps": true,
     "HPSMEnabled": true,
     "FileContents": true,
-    "LoadKbDetails": true
+    "LoadKbDetails": true,
+    "RankingAllowed": true,
+    "RankingEnabled": false,
+    "MatchConfigAllowed": false,
+    "RankingThreshold": 0,
+    "MinSnippetHits": 0,
+    "MinSnippetLines": 0,
+    "HonourFileExts": true
   },
   "TLS": {
     "CertFile": "",

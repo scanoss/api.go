@@ -27,6 +27,11 @@ fi
 if [ "$1" == "-k" ] || [ "$2" == "-k" ] || [ "$3" == "-k" ] ; then
   for i in "$@"; do :; done
   md5=$i
+  # Validate MD5 format (32 hexadecimal characters)
+  if [[ ! "$md5" =~ ^[a-fA-F0-9]{32}$ ]]; then
+    echo "Error: Invalid MD5 hash format: $md5" >&2
+    exit 1
+  fi
   echo "file contents: $md5"
   echo "line 2"
   echo "line 3"
@@ -51,27 +56,31 @@ if [ "$1" == "-l" ] || [ "$2" == "-l" ] || [ "$3" == "-l" ] ; then
   exit 0
 fi
 
-# Simulate invalid kb name
+# Simulate kb name validation
 for arg in "$@"; do
-  if [[ "$arg" == "-n"* ]]; then
-    # Extract everything after "-n"
-    scf=${arg#-n}
-    # Only show error if the value is NOT "oss"
-    if [[ "$scf" != "oss" ]]; then
-      echo "{Error: file and url tables must be present in $scf KB in order to proceed with the scan"
-      exit 1
-    fi
+  if [[ "$arg" == "-n" ]]; then
+    # -n followed by space (separate argument) is invalid - KB name should be attached
+    echo "Error: -n flag requires a KB name (use -n<name>)" >&2
+    exit 1
+  fi
+  # Check for invalid KB name (test_kb is used in tests to simulate invalid KB)
+  if [[ "$arg" == "-ntest_kb" ]]; then
+    echo "Error: KB 'test_kb' not found" >&2
+    exit 1
   fi
 done
 
 # Simulate return a scan result
-if [ "$1" == "-w" ] || [ "$2" == "-w" ] || [ "$3" == "-w" ] || [ "$4" == "-w" ] || [ "$5" == "-w" ] || [ "$6" == "-w" ] || [ "$7" == "-w" ] || [ "$8" == "-w" ]; then
-  for i in "$@"; do :; done
-  scf=$i
-  echo " {\"$scf\":[{\"id\": \"none\", \"server\": { \"kb_version\": {\"daily\": \"23.08.09\", \"monthly\": \"23.07\"}, \"version\": \"5.2.7\"}}]}  "
-  exit 0
-fi
+# Check if -w is present anywhere in the arguments
+for arg in "$@"; do
+  if [[ "$arg" == "-w" ]]; then
+    for i in "$@"; do :; done
+    scf=$i
+    echo " {\"$scf\":[{\"id\": \"none\", \"server\": { \"kb_version\": {\"daily\": \"23.08.09\", \"monthly\": \"23.07\"}, \"version\": \"5.2.7\"}}]}  "
+    exit 0
+  fi
+done
 
 # Unknown command option, respond with error
-echo "Unknown command option: $*"
+echo "Unknown command option: $*" >&2
 exit 1

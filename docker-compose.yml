@@ -3,6 +3,7 @@ services:
     image: scanoss_api_go_service_test
     environment:
       SCAN_BINARY: "/app/scanoss.sh"
+      SCANOSS_MATCH_CONFIG_ALLOWED: "true"
     ports:
       - "5443:5443"
     entrypoint: "/app/scanoss-go-api"

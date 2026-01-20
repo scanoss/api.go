@@ -24,7 +24,9 @@ import (
 	"time"
 
 	"github.com/go-co-op/gocron"
+	"github.com/hashicorp/go-version"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"go.uber.org/zap"
 )
 
 // Structure for parsing KB & Engine version from scan response.
@@ -41,6 +43,29 @@ type matchStructure []struct {
 
 var kbDetails string     // KB Details JSON string
 var engineVersion string // Version of the engine in use
+
+// validateEngineVersion validates that the current engine version meets the minimum requirement.
+// Logs a critical error if the version is below minimum, or an info message if it meets the requirement.
+func validateEngineVersion(zs *zap.SugaredLogger, currentEngineVersion, minEngineVersion string) {
+	if minEngineVersion == "" || currentEngineVersion == "unknown" || currentEngineVersion == "" {
+		return
+	}
+	currentVersion, err := version.NewVersion(currentEngineVersion)
+	if err != nil {
+		zs.Errorf("Failed to parse current engine version '%s': %v", currentEngineVersion, err)
+		return
+	}
+	minVersion, err := version.NewVersion(minEngineVersion)
+	if err != nil {
+		zs.Errorf("Failed to parse minimum engine version '%s': %v", minEngineVersion, err)
+		return
+	}
+	if currentVersion.LessThan(minVersion) {
+		zs.Errorf("Engine version '%s' is below the minimum required version '%s'. Some features may not work as expected.", currentEngineVersion, minEngineVersion)
+	} else {
+		zs.Infof("Engine version '%s' meets minimum requirement '%s'", currentEngineVersion, minEngineVersion)
+	}
+}
 
 // SetupKBDetailsCron sets up a background cron to update the KB version once an hour.
 func (s APIService) SetupKBDetailsCron() {
@@ -79,13 +104,14 @@ func (s APIService) KBDetails(w http.ResponseWriter, r *http.Request) {
 
 // loadKBDetails attempts to scan a file to load the latest KB details from the server.
 func (s APIService) loadKBDetails() {
-	zs := sugaredLogger(context.TODO()) // Setup logger without context
+	zs := sugaredLogger(context.TODO()) // Set up a logger without context
 	zs.Debugf("Loading latest KB details...")
 	if len(engineVersion) == 0 {
 		engineVersion = "unknown"
 	}
 	// Load a random (hopefully non-existent) file match to extract the KB version details
-	result, err := s.scanWfp("file=7c53a2de7dfeaa20d057db98468d6670,2321,path/to/dummy/file.txt", "", "", "", "", zs)
+	emptyConfig := DefaultScanningServiceConfig(s.config)
+	result, err := s.scanWfp("file=7c53a2de7dfeaa20d057db98468d6670,2321,path/to/dummy/file.txt", "", emptyConfig, zs)
 	if err != nil {
 		zs.Warnf("Failed to detect KB version from eninge: %v", err)
 		return
@@ -121,6 +147,7 @@ func (s APIService) loadKBDetails() {
 		if len(ms) > 0 {
 			kbDetails = fmt.Sprintf(`{"kb_version": { "monthly": "%v", "daily": "%v"}}`, ms[0].Server.KbVersion.Monthly, ms[0].Server.KbVersion.Daily)
 			engineVersion = ms[0].Server.Version
+			validateEngineVersion(zs, engineVersion, minEngineVersion)
 		}
 	}
 }
