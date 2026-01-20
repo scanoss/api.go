@@ -29,7 +29,7 @@ if [ "$1" == "-k" ] || [ "$2" == "-k" ] || [ "$3" == "-k" ] ; then
   md5=$i
   # Validate MD5 format (32 hexadecimal characters)
   if [[ ! "$md5" =~ ^[a-fA-F0-9]{32}$ ]]; then
-    echo "Error: Invalid MD5 hash format: $md5"
+    echo "Error: Invalid MD5 hash format: $md5" >&2
     exit 1
   fi
   echo "file contents: $md5"
@@ -82,5 +82,5 @@ for arg in "$@"; do
 done
 
 # Unknown command option, respond with error
-echo "Unknown command option: $*"
+echo "Unknown command option: $*" >&2
 exit 1
