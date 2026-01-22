@@ -22,11 +22,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"go.uber.org/zap"
 	myconfig "scanoss.com/go-api/pkg/config"
 	"scanoss.com/go-api/pkg/protocol/rest"
 )
@@ -107,6 +109,12 @@ func setupEnvVars(cfg *myconfig.ServerConfig) {
 			zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS_URL value to %v: %v", customContents, err)
 		}
 	}
+	if cfg.Scanning.HPSMEnabled && len(cfg.Scanning.HPSMcontentsAPIkey) > 0 {
+		err := os.Setenv("SCANOSS_API_KEY", cfg.Scanning.HPSMcontentsAPIkey)
+		if err != nil {
+			zlog.S.Infof("Failed to set SCANOSS_API_KEY value to %v: %v", cfg.Scanning.HPSMcontentsAPIkey, err)
+		}
+	}
 }
 
 // RunServer runs the gRPC Dependency Server.
@@ -154,5 +162,57 @@ func RunServer() error {
 	zlog.S.Infof("Running with config: %+v", *cfg)
 	// Setup custom env variables if requested
 	setupEnvVars(cfg)
+	if cfg.Scanning.HPSMEnabled {
+		err = testHPSMSetup(zlog.S)
+		if err != nil {
+			zlog.S.Errorf("HPSM setup test failed: %v - check SCANOSS_FILE_CONTENTS_URL or SCANOSS_API_KEY are correct, disabling HPSM.", err)
+			cfg.Scanning.HPSMEnabled = false
+		}
+	}
 	return rest.RunServer(cfg, version)
+}
+
+func testHPSMSetup(s *zap.SugaredLogger) error {
+	url := os.Getenv("SCANOSS_FILE_CONTENTS_URL")
+	if url == "" {
+		return fmt.Errorf("SCANOSS_FILE_CONTENTS_URL is not set")
+	}
+	// Ensure URL ends with "/" before appending the test MD5
+	if !strings.HasSuffix(url, "/") {
+		url += "/"
+	}
+	url += "8109a183e06165144dc8d97b791c130f" // Append a known file MD5 to test retrieval
+
+	apiKey := os.Getenv("SCANOSS_API_KEY")
+	// Build wget command: GET request (not HEAD/spider), output to /dev/null, quiet mode, timeout, single attempt
+	args := []string{"-O", "/dev/null", "-q", "-T", "10", "--tries=1"}
+
+	if apiKey != "" {
+		// Add X-Session header if API key is present
+		args = append(args, "--header", "X-Session: "+apiKey)
+	} else {
+		s.Debug("No SCANOSS_API_KEY set; proceeding without authentication header.")
+	}
+
+	args = append(args, url)
+	s.Debugf("HPSM test command: wget %v", args)
+
+	cmd := exec.Command("wget", args...)
+	// Capture stderr to get HTTP status code on failure
+	var stderr strings.Builder
+	cmd.Stdout = nil
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		stderrStr := stderr.String()
+		if stderrStr != "" {
+			s.Debugf("HPSM connection test failed for URL %s: %v - stderr: %s", url, err, stderrStr)
+		} else {
+			s.Debugf("HPSM connection test failed for URL %s: %v", url, err)
+		}
+		return err
+	}
+
+	s.Infof("HPSM setup test successful for URL: %s", url)
+	return nil
 }
