@@ -126,7 +126,6 @@ func RunServer() error {
 	}
 	// Check mode to determine which logger to load
 	{
-		var err error
 		switch strings.ToLower(cfg.App.Mode) {
 		case "prod":
 			if len(cfg.Logging.ConfigFile) > 0 {
