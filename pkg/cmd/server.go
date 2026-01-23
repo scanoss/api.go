@@ -75,45 +75,62 @@ func getConfig() (*myconfig.ServerConfig, error) {
 
 // setupEnvVars configures a custom env vars for the scanoss engine.
 func setupEnvVars(cfg *myconfig.ServerConfig) {
-	setEnvIfNotEmpty("SCANOSS_API_URL", cfg.Scanning.ScanningURL)
-
-	contentsURL := determineContentsURL(cfg)
-	setEnvIfNotEmpty("SCANOSS_FILE_CONTENTS_URL", contentsURL)
-
-	_ = os.Setenv("SCANOSS_FILE_CONTENTS", fmt.Sprintf("%v", cfg.Scanning.FileContents))
-
-	handleFileContentsFalse()
-
-	if cfg.Scanning.HPSMEnabled && len(cfg.Scanning.HPSMcontentsAPIkey) > 0 {
-		_ = os.Setenv("SCANOSS_API_KEY", cfg.Scanning.HPSMcontentsAPIkey)
-	}
+	setupEnvVarFileContentsURL(cfg)
+	setupEnvVarFileContents(cfg)
+	setupEnvVarHPSMkey(cfg)
 }
 
-func setEnvIfNotEmpty(key, value string) {
-	if value != "" {
-		_ = os.Setenv(key, value)
+// Setup SCANOSS_FILE_CONTENTS_URL, used by HPSM and the engine for access file contents.
+func setupEnvVarFileContentsURL(cfg *myconfig.ServerConfig) {
+	if len(cfg.Scanning.ScanningURL) > 0 {
+		err := os.Setenv("SCANOSS_API_URL", cfg.Scanning.ScanningURL)
+		if err != nil {
+			zlog.S.Infof("Failed to set alternative SCANOSS_API_URL value to %s: %v", cfg.Scanning.ScanningURL, err)
+		}
 	}
-}
-
-func determineContentsURL(cfg *myconfig.ServerConfig) string {
-	// Explicit contents URL takes precedence
-	if cfg.Scanning.FileContentsURL != "" {
-		return cfg.Scanning.FileContentsURL
-	}
-
-	// Otherwise derive from API URL
-	if customURL := os.Getenv("SCANOSS_API_URL"); customURL != "" {
+	var contentsURL string
+	customURL := os.Getenv("SCANOSS_API_URL")
+	if len(customURL) > 0 {
 		zlog.S.Infof("Using custom API URL: %s", customURL)
-		return strings.TrimSuffix(customURL, "/") + "/file_contents"
+		customURL = strings.TrimSuffix(customURL, "/")
+		contentsURL = fmt.Sprintf("%s/file_contents", customURL) // Assume the contents URL from the scanning URL
 	}
-
-	return ""
+	if len(cfg.Scanning.FileContentsURL) > 0 {
+		contentsURL = cfg.Scanning.FileContentsURL // We have an explicit contents URL specified. Use it
+	}
+	if len(contentsURL) > 0 {
+		err := os.Setenv("SCANOSS_FILE_CONTENTS_URL", contentsURL)
+		if err != nil {
+			zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS_URL value to %v: %v", contentsURL, err)
+		}
+	}
+	if customContentsURL := os.Getenv("SCANOSS_FILE_CONTENTS_URL"); len(customContentsURL) > 0 {
+		zlog.S.Infof("Using custom content URL: %s.", customContentsURL)
+	}
 }
 
-func handleFileContentsFalse() {
-	if customContents := os.Getenv("SCANOSS_FILE_CONTENTS"); customContents == "false" {
+// Setup SCANOSS_FILE_CONTENTS for backward compatibility.
+func setupEnvVarFileContents(cfg *myconfig.ServerConfig) {
+	err := os.Setenv("SCANOSS_FILE_CONTENTS", fmt.Sprintf("%v", cfg.Scanning.FileContents))
+	if err != nil {
+		zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS value to %v: %v", cfg.Scanning.FileContents, err)
+	}
+	if customContents := os.Getenv("SCANOSS_FILE_CONTENTS"); len(customContents) > 0 && customContents == "false" {
 		zlog.S.Infof("Skipping file_url datafield.")
-		_ = os.Setenv("SCANOSS_FILE_CONTENTS_URL", "false")
+		err2 := os.Setenv("SCANOSS_FILE_CONTENTS_URL", customContents) // Force the contents URL to say 'false' also
+		if err2 != nil {
+			zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS_URL value to %v: %v", customContents, err2)
+		}
+	}
+}
+
+// Setup SCANOSS_API_KEY used by HSPM to access file contents.
+func setupEnvVarHPSMkey(cfg *myconfig.ServerConfig) {
+	if cfg.Scanning.HPSMEnabled && len(cfg.Scanning.HPSMcontentsAPIkey) > 0 {
+		err := os.Setenv("SCANOSS_API_KEY", cfg.Scanning.HPSMcontentsAPIkey)
+		if err != nil {
+			zlog.S.Infof("Failed to set SCANOSS_API_KEY value to %v: %v", cfg.Scanning.HPSMcontentsAPIkey, err)
+		}
 	}
 }
 
