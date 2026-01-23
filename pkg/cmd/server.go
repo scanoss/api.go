@@ -21,9 +21,11 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
-	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
@@ -73,47 +75,45 @@ func getConfig() (*myconfig.ServerConfig, error) {
 
 // setupEnvVars configures a custom env vars for the scanoss engine.
 func setupEnvVars(cfg *myconfig.ServerConfig) {
-	if len(cfg.Scanning.ScanningURL) > 0 {
-		err := os.Setenv("SCANOSS_API_URL", cfg.Scanning.ScanningURL)
-		if err != nil {
-			zlog.S.Infof("Failed to set alternative SCANOSS_API_URL value to %s: %v", cfg.Scanning.ScanningURL, err)
-		}
-	}
-	var contentsURL string
-	customURL := os.Getenv("SCANOSS_API_URL")
-	if len(customURL) > 0 {
-		zlog.S.Infof("Using custom API URL: %s", customURL)
-		customURL = strings.TrimSuffix(customURL, "/")
-		contentsURL = fmt.Sprintf("%s/file_contents", customURL) // Assume the contents URL from the scanning URL
-	}
-	if len(cfg.Scanning.FileContentsURL) > 0 {
-		contentsURL = cfg.Scanning.FileContentsURL // We have an explicit contents URL specified. Use it
-	}
-	if len(contentsURL) > 0 {
-		err := os.Setenv("SCANOSS_FILE_CONTENTS_URL", contentsURL)
-		if err != nil {
-			zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS_URL value to %v: %v", contentsURL, err)
-		}
-	}
-	if customContentsURL := os.Getenv("SCANOSS_FILE_CONTENTS_URL"); len(customContentsURL) > 0 {
-		zlog.S.Infof("Using custom content URL: %s.", customContentsURL)
-	}
-	err := os.Setenv("SCANOSS_FILE_CONTENTS", fmt.Sprintf("%v", cfg.Scanning.FileContents))
-	if err != nil {
-		zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS value to %v: %v", cfg.Scanning.FileContents, err)
-	}
-	if customContents := os.Getenv("SCANOSS_FILE_CONTENTS"); len(customContents) > 0 && customContents == "false" {
-		zlog.S.Infof("Skipping file_url datafield.")
-		err2 := os.Setenv("SCANOSS_FILE_CONTENTS_URL", customContents) // Force the contents URL to say 'false' also
-		if err2 != nil {
-			zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS_URL value to %v: %v", customContents, err)
-		}
-	}
+	setEnvIfNotEmpty("SCANOSS_API_URL", cfg.Scanning.ScanningURL)
+
+	contentsURL := determineContentsURL(cfg)
+	setEnvIfNotEmpty("SCANOSS_FILE_CONTENTS_URL", contentsURL)
+
+	_ = os.Setenv("SCANOSS_FILE_CONTENTS", fmt.Sprintf("%v", cfg.Scanning.FileContents))
+
+	handleFileContentsFalse()
+
 	if cfg.Scanning.HPSMEnabled && len(cfg.Scanning.HPSMcontentsAPIkey) > 0 {
-		err := os.Setenv("SCANOSS_API_KEY", cfg.Scanning.HPSMcontentsAPIkey)
-		if err != nil {
-			zlog.S.Infof("Failed to set SCANOSS_API_KEY value to %v: %v", cfg.Scanning.HPSMcontentsAPIkey, err)
-		}
+		_ = os.Setenv("SCANOSS_API_KEY", cfg.Scanning.HPSMcontentsAPIkey)
+	}
+}
+
+func setEnvIfNotEmpty(key, value string) {
+	if value != "" {
+		_ = os.Setenv(key, value)
+	}
+}
+
+func determineContentsURL(cfg *myconfig.ServerConfig) string {
+	// Explicit contents URL takes precedence
+	if cfg.Scanning.FileContentsURL != "" {
+		return cfg.Scanning.FileContentsURL
+	}
+
+	// Otherwise derive from API URL
+	if customURL := os.Getenv("SCANOSS_API_URL"); customURL != "" {
+		zlog.S.Infof("Using custom API URL: %s", customURL)
+		return strings.TrimSuffix(customURL, "/") + "/file_contents"
+	}
+
+	return ""
+}
+
+func handleFileContentsFalse() {
+	if customContents := os.Getenv("SCANOSS_FILE_CONTENTS"); customContents == "false" {
+		zlog.S.Infof("Skipping file_url datafield.")
+		_ = os.Setenv("SCANOSS_FILE_CONTENTS_URL", "false")
 	}
 }
 
@@ -177,41 +177,37 @@ func testHPSMSetup(s *zap.SugaredLogger) error {
 		return fmt.Errorf("SCANOSS_FILE_CONTENTS_URL is not set")
 	}
 	// Ensure URL ends with "/" before appending the test MD5
-	if !strings.HasSuffix(url, "/") {
-		url += "/"
-	}
-	url += "8109a183e06165144dc8d97b791c130f" // Append a known file MD5 to test retrieval
+	url = strings.TrimSuffix(url, "/") + "/8109a183e06165144dc8d97b791c130f"
 
-	apiKey := os.Getenv("SCANOSS_API_KEY")
-	// Build wget command: GET request (not HEAD/spider), output to /dev/null, quiet mode, timeout, single attempt
-	args := []string{"-O", "/dev/null", "-q", "-T", "10", "--tries=1"}
+	s.Debug("HPSM test request started")
 
-	if apiKey != "" {
-		// Add X-Session header if API key is present
-		args = append(args, "--header", "X-Session: "+apiKey)
-	} else {
-		s.Debug("No SCANOSS_API_KEY set; proceeding without authentication header.")
+	// Create HTTP GET request
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create HPSM test request: %w", err)
 	}
 
-	args = append(args, url)
-	s.Debugf("HPSM test command: wget %v", args)
-
-	cmd := exec.Command("wget", args...)
-	// Capture stderr to get HTTP status code on failure
-	var stderr strings.Builder
-	cmd.Stdout = nil
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		stderrStr := stderr.String()
-		if stderrStr != "" {
-			s.Debugf("HPSM connection test failed for URL %s: %v - stderr: %s", url, err, stderrStr)
-		} else {
-			s.Debugf("HPSM connection test failed for URL %s: %v", url, err)
-		}
-		return err
+	// Set X-Session header if API key is present
+	if apiKey := os.Getenv("SCANOSS_API_KEY"); apiKey != "" {
+		req.Header.Set("X-Session", apiKey)
 	}
 
-	s.Infof("HPSM setup test successful for URL: %s", url)
+	// Perform the request with 10 second timeout
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("HPSM connection test failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read and discard the response body
+	_, _ = io.Copy(io.Discard, resp.Body)
+
+	// Treat non-2xx status codes as failures
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("HTTP status %d", resp.StatusCode)
+	}
+
+	s.Infof("HPSM setup test successful (HTTP %d)", resp.StatusCode)
 	return nil
 }
