@@ -426,7 +426,7 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 		args = append(args, sbomFile)
 	}
 	// Ranking threshold (only if ranking is enabled and allowed)
-	if config.rankingEnabled && config.rankingThreshold > 0 && s.config.Scanning.RankingAllowed {
+	if config.rankingEnabled && config.rankingThreshold >= 0 && s.config.Scanning.RankingAllowed {
 		args = append(args, fmt.Sprintf("-r%d", config.rankingThreshold))
 	}
 	// Minimum snippet hits
