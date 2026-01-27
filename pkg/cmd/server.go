@@ -21,6 +21,7 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -37,7 +38,7 @@ import (
 //go:embed version.txt
 var version string
 
-// getConfig checks command line args for option to feed into the config parser.
+// getConfig checks command line args for an option to feed into the config parser.
 func getConfig() (*myconfig.ServerConfig, error) {
 	var jsonConfig, envConfig, loggingConfig string
 	flag.StringVar(&jsonConfig, "json-config", "", "Application JSON config")
@@ -65,20 +66,20 @@ func getConfig() (*myconfig.ServerConfig, error) {
 		}
 	}
 	myConfig, err := myconfig.NewServerConfig(feeders)
-	if len(loggingConfig) > 0 {
+	if err != nil && myConfig != nil && len(loggingConfig) > 0 {
 		myConfig.Logging.ConfigFile = loggingConfig // Override any logging config file with this one.
 	}
 	return myConfig, err
 }
 
-// setupEnvVars configures a custom env vars for the scanoss engine.
+// setupEnvVars configures a custom env var for the scanoss engine.
 func setupEnvVars(cfg *myconfig.ServerConfig) {
 	setupEnvVarFileContentsURL(cfg)
 	setupEnvVarFileContents(cfg)
 	setupEnvVarHPSMkey(cfg)
 }
 
-// Setup SCANOSS_FILE_CONTENTS_URL, used by HPSM and the engine for access file contents.
+// setupEnvVarFileContentsURL sets up SCANOSS_FILE_CONTENTS_URL, used by HPSM and the engine to access file contents.
 func setupEnvVarFileContentsURL(cfg *myconfig.ServerConfig) {
 	if len(cfg.Scanning.ScanningURL) > 0 {
 		err := os.Setenv("SCANOSS_API_URL", cfg.Scanning.ScanningURL)
@@ -107,14 +108,14 @@ func setupEnvVarFileContentsURL(cfg *myconfig.ServerConfig) {
 	}
 }
 
-// Setup SCANOSS_FILE_CONTENTS for backward compatibility.
+// setupEnvVarFileContents sets up SCANOSS_FILE_CONTENTS for backward compatibility.
 func setupEnvVarFileContents(cfg *myconfig.ServerConfig) {
 	err := os.Setenv("SCANOSS_FILE_CONTENTS", fmt.Sprintf("%v", cfg.Scanning.FileContents))
 	if err != nil {
 		zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS value to %v: %v", cfg.Scanning.FileContents, err)
 	}
 	if customContents := os.Getenv("SCANOSS_FILE_CONTENTS"); len(customContents) > 0 && customContents == "false" {
-		zlog.S.Infof("Skipping file_url datafield.")
+		zlog.S.Infof("Skipping file_url data field.")
 		err2 := os.Setenv("SCANOSS_FILE_CONTENTS_URL", customContents) // Force the contents URL to say 'false' also
 		if err2 != nil {
 			zlog.S.Infof("Failed to set SCANOSS_FILE_CONTENTS_URL value to %v: %v", customContents, err2)
@@ -122,12 +123,12 @@ func setupEnvVarFileContents(cfg *myconfig.ServerConfig) {
 	}
 }
 
-// Setup SCANOSS_API_KEY used by HSPM to access file contents.
+// setupEnvVarHPSMkey sets up SCANOSS_API_KEY used by HSPM to access file contents.
 func setupEnvVarHPSMkey(cfg *myconfig.ServerConfig) {
 	if cfg.Scanning.HPSMEnabled && len(cfg.Scanning.HPSMcontentsAPIkey) > 0 {
 		err := os.Setenv("SCANOSS_API_KEY", cfg.Scanning.HPSMcontentsAPIkey)
 		if err != nil {
-			zlog.S.Infof("Failed to set SCANOSS_API_KEY value to %v: %v", cfg.Scanning.HPSMcontentsAPIkey, err)
+			zlog.S.Infof("Failed to set SCANOSS_API_KEY value to %v: %v", "*****", err)
 		}
 	}
 }
@@ -136,7 +137,7 @@ func setupEnvVarHPSMkey(cfg *myconfig.ServerConfig) {
 func RunServer() error {
 	// Load command line options and config
 	cfg, err := getConfig()
-	if err != nil {
+	if err != nil || cfg == nil {
 		return fmt.Errorf("failed to load config: %v", err)
 	}
 	// Check mode to determine which logger to load
@@ -165,7 +166,7 @@ func RunServer() error {
 		defer zlog.SyncZap()
 	}
 	zlog.S.Infof("Starting SCANOSS Dependency Service: %v", strings.TrimSpace(version))
-	// Setup database connection pool
+	// Set up a database connection pool
 	if cfg.Logging.DynamicLogging && len(cfg.Logging.DynamicPort) > 0 {
 		zlog.S.Infof("Setting up dynamic logging level on %v.", cfg.Logging.DynamicPort)
 		zlog.SetupDynamicLogging(cfg.Logging.DynamicPort)
@@ -212,10 +213,18 @@ func testHPSMSetup() error {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if resp != nil {
-		defer resp.Body.Close()
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				zlog.S.Errorf("Failed to close HPSM response body: %v", err)
+			}
+		}(resp.Body)
 	}
 	if err != nil {
 		return fmt.Errorf("HPSM connection test failed: %w", err)
+	}
+	if resp == nil {
+		return fmt.Errorf("HPSM connection test failed: no response")
 	}
 	// Treat non-2xx status codes as failures
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
