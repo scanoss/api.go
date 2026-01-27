@@ -66,7 +66,7 @@ func getConfig() (*myconfig.ServerConfig, error) {
 		}
 	}
 	myConfig, err := myconfig.NewServerConfig(feeders)
-	if err != nil && myConfig != nil && len(loggingConfig) > 0 {
+	if err == nil && myConfig != nil && len(loggingConfig) > 0 {
 		myConfig.Logging.ConfigFile = loggingConfig // Override any logging config file with this one.
 	}
 	return myConfig, err
