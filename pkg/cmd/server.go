@@ -21,7 +21,6 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -30,7 +29,6 @@ import (
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
-	"go.uber.org/zap"
 	myconfig "scanoss.com/go-api/pkg/config"
 	"scanoss.com/go-api/pkg/protocol/rest"
 )
@@ -174,12 +172,16 @@ func RunServer() error {
 		zlog.S.Infof("Use the following to get the current status: curl -X GET %v/log/level", cfg.Logging.DynamicPort)
 		zlog.S.Infof("Use the following to set the current status: curl -X PUT %v/log/level -d level=debug", cfg.Logging.DynamicPort)
 	}
-	zlog.S.Infof("Running with %v worker(s) per scan request", cfg.Scanning.Workers)
-	zlog.S.Infof("Running with config: %+v", *cfg)
+	sc := cfg.Scanning
+	if sc.HPSMcontentsAPIkey != "" {
+		sc.HPSMcontentsAPIkey = "<redacted>"
+	}
+	zlog.S.Infof("Running with %v files and %v worker(s) per scan request", cfg.Scanning.WfpGrouping, cfg.Scanning.Workers)
+	zlog.S.Infof("Running with Scan config: %+v", sc)
 	// Setup custom env variables if requested
 	setupEnvVars(cfg)
 	if cfg.Scanning.HPSMEnabled {
-		err = testHPSMSetup(zlog.S)
+		err = testHPSMSetup()
 		if err != nil {
 			zlog.S.Errorf("HPSM setup test failed: %v - check SCANOSS_FILE_CONTENTS_URL or SCANOSS_API_KEY are correct, disabling HPSM.", err)
 			cfg.Scanning.HPSMEnabled = false
@@ -188,43 +190,37 @@ func RunServer() error {
 	return rest.RunServer(cfg, version)
 }
 
-func testHPSMSetup(s *zap.SugaredLogger) error {
+// testHPSMSetup validates that the sources server is available to enable HPSM.
+func testHPSMSetup() error {
 	url := os.Getenv("SCANOSS_FILE_CONTENTS_URL")
 	if url == "" {
 		return fmt.Errorf("SCANOSS_FILE_CONTENTS_URL is not set")
 	}
-	// Ensure URL ends with "/" before appending the test MD5
+	// Ensure the URL ends with "/" before appending the test MD5
 	url = strings.TrimSuffix(url, "/") + "/8109a183e06165144dc8d97b791c130f"
-
-	s.Debug("HPSM test request started")
-
+	zlog.S.Debug("HPSM test request started")
 	// Create HTTP GET request
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create HPSM test request: %w", err)
 	}
-
-	// Set X-Session header if API key is present
+	// Set the X-Session header if an API key is present
 	if apiKey := os.Getenv("SCANOSS_API_KEY"); apiKey != "" {
 		req.Header.Set("X-Session", apiKey)
 	}
-
-	// Perform the request with 10 second timeout
+	// Perform the request with a 10-second timeout
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		return fmt.Errorf("HPSM connection test failed: %w", err)
 	}
-	defer resp.Body.Close()
-
-	// Read and discard the response body
-	_, _ = io.Copy(io.Discard, resp.Body)
-
 	// Treat non-2xx status codes as failures
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("HTTP status %d", resp.StatusCode)
 	}
-
-	s.Infof("HPSM setup test successful (HTTP %d)", resp.StatusCode)
+	zlog.S.Infof("HPSM setup test successful (HTTP %d)", resp.StatusCode)
 	return nil
 }
