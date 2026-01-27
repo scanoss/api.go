@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 
+## [1.6.1] - 2026-01-27
+### Added
+- Added HPSM validation support.
+- Added command context timeout with cause for better logging.
+### Fixed
+- Fixed issue with ranking threshold.
+
 ## [1.6.0] - 2026-01-20
 ### Added
 - Added scanoss.json scanning config support.
@@ -173,3 +180,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.5.1]: https://github.com/scanoss/api.go/compare/v1.5.0...v1.5.1
 [1.5.2]: https://github.com/scanoss/api.go/compare/v1.5.1...v1.5.2
 [1.6.0]: https://github.com/scanoss/api.go/compare/v1.5.2...v1.6.0
+[1.6.1]: https://github.com/scanoss/api.go/compare/v1.6.0...v1.6.1
