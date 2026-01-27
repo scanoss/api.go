@@ -214,9 +214,9 @@ func testHPSMSetup() error {
 	resp, err := client.Do(req)
 	if resp != nil {
 		defer func(Body io.ReadCloser) {
-			err := Body.Close()
-			if err != nil {
-				zlog.S.Errorf("Failed to close HPSM response body: %v", err)
+			err2 := Body.Close()
+			if err2 != nil {
+				zlog.S.Errorf("Failed to close HPSM response body: %v", err2)
 			}
 		}(resp.Body)
 	}
