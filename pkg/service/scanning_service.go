@@ -426,7 +426,7 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 		args = append(args, sbomFile)
 	}
 	// Ranking threshold (only if ranking is enabled and allowed)
-	if config.rankingEnabled && config.rankingThreshold > 0 && s.config.Scanning.RankingAllowed {
+	if config.rankingEnabled && config.rankingThreshold >= 0 && s.config.Scanning.RankingAllowed {
 		args = append(args, fmt.Sprintf("-r%d", config.rankingThreshold))
 	}
 	// Minimum snippet hits
@@ -444,11 +444,16 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	// WFP file argument
 	args = append(args, "-w", tempFile.Name())
 	zs.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.config.Scanning.ScanTimeout)*time.Second) // put a timeout on the scan execution
+	timeoutErr := fmt.Errorf("scan command timed out after %v seconds", s.config.Scanning.ScanTimeout)
+	ctx, cancel := context.WithTimeoutCause(context.Background(), time.Duration(s.config.Scanning.ScanTimeout)*time.Second, timeoutErr) // put a timeout on the scan execution
 	defer cancel()
 	output, err := exec.CommandContext(ctx, s.config.Scanning.ScanBinary, args...).Output()
 	if err != nil {
-		zs.Errorf("Scan command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)
+		if cause := context.Cause(ctx); cause != nil {
+			zs.Errorf("Scan command (%v) timed out: %v", s.config.Scanning.ScanBinary, cause)
+		} else {
+			zs.Errorf("Scan command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)
+		}
 		zs.Errorf("Command output: %s", bytes.TrimSpace(output))
 		if s.config.Scanning.KeepFailedWfps {
 			s.copyWfpTempFile(tempFile.Name(), zs)
@@ -464,11 +469,16 @@ func (s APIService) TestEngine() error {
 	var args []string
 	args = append(args, "-h")
 	zlog.S.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // put a timeout on the scanoss execution
+	timeoutErr := fmt.Errorf("engine test command timed out after 10 seconds")
+	ctx, cancel := context.WithTimeoutCause(context.Background(), 10*time.Second, timeoutErr) // put a timeout on the scanoss execution
 	defer cancel()
 	output, err := exec.CommandContext(ctx, s.config.Scanning.ScanBinary, args...).Output()
 	if err != nil {
-		zlog.S.Errorf("Scan test command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)
+		if cause := context.Cause(ctx); cause != nil {
+			zlog.S.Errorf("Scan test command (%v) timed out: %v", s.config.Scanning.ScanBinary, cause)
+		} else {
+			zlog.S.Errorf("Scan test command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)
+		}
 		zlog.S.Errorf("Command output: %s", bytes.TrimSpace(output))
 		return fmt.Errorf("failed to test scan engine: %v", err)
 	}
