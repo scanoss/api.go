@@ -35,6 +35,7 @@ type ScanningServiceConfig struct {
 	minSnippetHits   int
 	minSnippetLines  int
 	honourFileExts   bool
+	maxComponents    int8
 }
 
 func DefaultScanningServiceConfig(serverDefaultConfig *cfg.ServerConfig) ScanningServiceConfig {
@@ -48,6 +49,7 @@ func DefaultScanningServiceConfig(serverDefaultConfig *cfg.ServerConfig) Scannin
 		minSnippetHits:   serverDefaultConfig.Scanning.MinSnippetHits,
 		minSnippetLines:  serverDefaultConfig.Scanning.MinSnippetLines,
 		honourFileExts:   serverDefaultConfig.Scanning.HonourFileExts,
+		maxComponents:    serverDefaultConfig.Scanning.MaxReportedComponents,
 	}
 }
 

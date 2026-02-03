@@ -441,8 +441,14 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	if !config.honourFileExts {
 		args = append(args, "--ignore-file-ext")
 	}
+	// Multi-snippet configuration (max components per WFP)
+	if config.maxComponents > 0 {
+		args = append(args, fmt.Sprintf("-M%d", config.maxComponents))
+	}
+
 	// WFP file argument
 	args = append(args, "-w", tempFile.Name())
+	fmt.Printf("%+v\n", args)
 	zs.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
 	timeoutErr := fmt.Errorf("scan command timed out after %v seconds", s.config.Scanning.ScanTimeout)
 	ctx, cancel := context.WithTimeoutCause(context.Background(), time.Duration(s.config.Scanning.ScanTimeout)*time.Second, timeoutErr) // put a timeout on the scan execution
