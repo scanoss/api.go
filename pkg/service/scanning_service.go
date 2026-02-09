@@ -33,6 +33,7 @@ import (
 	oteltrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/mux"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"go.uber.org/zap"
 )
@@ -91,6 +92,8 @@ func (s APIService) ScanBatch(w http.ResponseWriter, r *http.Request) {
 	zs := sugaredLogger(logContext) // Setup logger with context
 	logRequestDetails(r, zs)
 
+	zs.Errorf("Received chunk ", reqID)
+
 	// Extract Session-Id header (required)
 	sessionID := strings.TrimSpace(r.Header.Get("Session-Id"))
 	if len(sessionID) == 0 {
@@ -99,6 +102,8 @@ func (s APIService) ScanBatch(w http.ResponseWriter, r *http.Request) {
 		setSpanError(span, "Missing Session-Id header")
 		return
 	}
+
+	zs.Errorf("\nFrom: %s", sessionID)
 
 	// Validate session ID to prevent path traversal attacks
 	if strings.Contains(sessionID, "/") || strings.Contains(sessionID, "..") {
@@ -139,9 +144,10 @@ func (s APIService) ScanBatch(w http.ResponseWriter, r *http.Request) {
 
 	// If this is the final chunk, launch the scan
 	if finalChunk {
+
+		zs.Debug("\nLast chunk From: %s", sessionID)
 		// Release the session lock after scan completes
 		defer sessionLocks.releaseSessionLock(sessionID)
-		defer removeFileByPath(sessionFilePath, zs) // Clean up session file after scan
 
 		zs.Infof("Final chunk received for session %v, launching scan...", sessionID)
 
@@ -202,12 +208,8 @@ func (s APIService) ScanBatch(w http.ResponseWriter, r *http.Request) {
 
 		s.countScanSize(wfps, wfpCount, zs, logContext, span)
 
-		// Execute scan (single or multi-threaded)
-		if s.config.Scanning.Workers <= 1 {
-			s.singleScan(string(contentsTrimmed), flags, scanType, sbomFilename, dbName, zs, w)
-		} else {
-			s.scanThreaded(wfps, int(wfpCount), flags, scanType, sbomFilename, dbName, zs, w, span)
-		}
+		// Execute scan (single batch mode)
+		s.launchBatchScan(sessionFilePath, flags, scanType, sbomFilename, dbName, zs, w)
 
 		// Record metrics for elapsed time
 		elapsedTime := time.Since(requestStartTime).Milliseconds()
@@ -410,6 +412,20 @@ func (s APIService) singleScan(wfp, flags, sbomType, sbomFile, dbName string, zs
 	}
 }
 
+// launchBatchScan starts a batch scan process asynchronously.
+func (s APIService) launchBatchScan(wfp, flags, sbomType, sbomFile, dbName string, zs *zap.SugaredLogger, w http.ResponseWriter) {
+	zs.Debugf("Launching batch scan...")
+	_, err := s.batchScanWfp(wfp, flags, sbomType, sbomFile, dbName, zs)
+	if err != nil {
+		zs.Errorf("Failed to start batch scan: %v", err)
+		http.Error(w, "ERROR failed to start batch scan", http.StatusInternalServerError)
+	} else {
+		zs.Debug("Batch scan process started successfully")
+		w.Header().Set(ContentTypeKey, ApplicationJSON)
+		printResponse(w, "{\"message\":\"Batch scan started successfully\"}\n", zs, false)
+	}
+}
+
 // scanThreaded scan the given WFPs in multiple threads.
 func (s APIService) scanThreaded(wfps []string, wfpCount int, flags, sbomType, sbomFile, dbName string, zs *zap.SugaredLogger, w http.ResponseWriter, span oteltrace.Span) {
 	addSpanEvent(span, "Started Scanning.")
@@ -603,6 +619,65 @@ func (s APIService) scanWfp(wfp, flags, sbomType, sbomFile, dbName string, zs *z
 	return string(output), nil
 }
 
+// batchScanWfp starts a batch scan process asynchronously using the --report flag.
+// The process is started and returns immediately without waiting for completion.
+func (s APIService) batchScanWfp(wfpPath, flags, sbomType, sbomFile, dbName string, zs *zap.SugaredLogger) (string, error) {
+	var args []string
+	if s.config.Scanning.ScanDebug {
+		args = append(args, "-d") // Set debug mode
+	}
+	if len(dbName) > 0 && dbName != "" { // we want to prefer request over the local config
+		args = append(args, fmt.Sprintf("-n%s", dbName))
+	} else if s.config.Scanning.ScanKbName != "" { // Set scanning KB name
+		args = append(args, fmt.Sprintf("-n%s", s.config.Scanning.ScanKbName))
+	}
+	if s.config.Scanning.ScanFlags > 0 { // Set system flags if enabled
+		args = append(args, fmt.Sprintf("-F %v", s.config.Scanning.ScanFlags))
+	} else if len(flags) > 0 && flags != "0" { // Set user supplied flags if enabled
+		args = append(args, fmt.Sprintf("-F %s", flags))
+	}
+	if len(sbomFile) > 0 && len(sbomType) > 0 { // Add SBOM to scanning process
+		switch sbomType {
+		case "identify":
+			args = append(args, "-s")
+		case "blacklist":
+			args = append(args, "-b")
+		default:
+			args = append(args, "-s") // Default to identify
+		}
+		args = append(args, sbomFile)
+	}
+	args = append(args, "-w", wfpPath)
+	args = append(args, "--report")
+	zs.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
+
+	// Start the batch scan process asynchronously without waiting for it to complete
+	cmd := exec.Command(s.config.Scanning.ScanBinary, args...)
+
+	// Set the working directory to the WFP location
+	if len(s.config.Scanning.WfpLoc) > 0 {
+		cmd.Dir = s.config.Scanning.WfpLoc
+		zs.Debugf("Setting working directory to: %v", s.config.Scanning.WfpLoc)
+	}
+
+	// Configure stdout and stderr to be discarded (since we're running async)
+	// In production, you might want to redirect these to a log file
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
+	err := cmd.Start()
+	if err != nil {
+		zs.Errorf("Batch scan command (%v %v) failed to start: %v", s.config.Scanning.ScanBinary, args, err)
+		if s.config.Scanning.KeepFailedWfps {
+			s.copyWfpTempFile(wfpPath, zs)
+		}
+		return "", fmt.Errorf("failed to start batch scan: %v", err)
+	}
+
+	zs.Infof("Batch scan process started successfully with PID %d", cmd.Process.Pid)
+	return "", nil
+}
+
 // TestEngine tests if the SCANOSS engine is accessible and running.
 func (s APIService) TestEngine() error {
 	zlog.S.Infof("Testing engine command: %v", s.config.Scanning.ScanBinary)
@@ -618,4 +693,88 @@ func (s APIService) TestEngine() error {
 		return fmt.Errorf("failed to test scan engine: %v", err)
 	}
 	return nil
+}
+
+// GetBatchResult handles batch WFP result retrieval requests from a client.
+func (s APIService) GetBatchResult(w http.ResponseWriter, r *http.Request) {
+	counters.incRequest("scan")
+	reqID := getReqID(r)
+	w.Header().Set(ResponseIDKey, reqID)
+
+	var logContext context.Context
+	var span oteltrace.Span
+	// Get the oltp span (if requested) and set logging context
+	if s.config.Telemetry.Enabled {
+		span, logContext = getSpan(r.Context(), reqID)
+	} else {
+		logContext = requestContext(r.Context(), reqID, "", "")
+	}
+	zs := sugaredLogger(logContext) // Setup logger with context
+	logRequestDetails(r, zs)
+
+	// Extract session-id from URL path parameters
+	vars := mux.Vars(r)
+	sessionID := strings.TrimSpace(vars["session-id"])
+
+	if len(sessionID) == 0 {
+		zs.Errorf("Missing session-id parameter")
+		http.Error(w, "ERROR session-id parameter is required", http.StatusBadRequest)
+		setSpanError(span, "Missing session-id parameter")
+		return
+	}
+
+	// Validate session ID to prevent command injection
+	if strings.Contains(sessionID, "/") || strings.Contains(sessionID, "..") || strings.Contains(sessionID, " ") {
+		zs.Errorf("Invalid session-id: %v", sessionID)
+		http.Error(w, "ERROR invalid session-id", http.StatusBadRequest)
+		setSpanError(span, "Invalid session-id")
+		return
+	}
+
+	zs.Infof("Retrieving batch results for session: %v", sessionID)
+
+	// Execute scanoss --batch-result command
+	var args []string
+	args = append(args, "--batch-result", sessionID)
+
+	zs.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(s.config.Scanning.ScanTimeout)*time.Second*5)
+	defer cancel()
+
+	// Create command with context
+	cmd := exec.CommandContext(ctx, s.config.Scanning.ScanBinary, args...)
+
+	// Set the working directory to the WFP location (where batch results are stored)
+	if len(s.config.Scanning.WfpLoc) > 0 {
+		cmd.Dir = s.config.Scanning.WfpLoc
+		zs.Debugf("Setting working directory to: %v", s.config.Scanning.WfpLoc)
+	}
+
+	// Use CombinedOutput to capture both stdout and stderr
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		zs.Errorf("Batch result command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)
+		zs.Errorf("Command output (stdout+stderr): %s", string(output))
+
+		// Check if it's an exit error to get the exit code
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			zs.Errorf("Exit code: %d", exitErr.ExitCode())
+		}
+
+		http.Error(w, "ERROR failed to retrieve batch results", http.StatusInternalServerError)
+		setSpanError(span, fmt.Sprintf("Failed to retrieve batch results: %v", err))
+		return
+	}
+
+	result := strings.TrimSpace(string(output))
+	if len(result) == 0 {
+		zs.Warnf("No results found for session %v", sessionID)
+		http.Error(w, "ERROR no results found for session", http.StatusNotFound)
+		setSpanError(span, "No results found")
+		return
+	}
+
+	zs.Debugf("Successfully retrieved batch results for session %v", sessionID)
+	w.Header().Set(ContentTypeKey, ApplicationJSON)
+	printResponse(w, fmt.Sprintf("%s\n", result), zs, false)
 }
