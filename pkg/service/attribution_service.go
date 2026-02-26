@@ -19,6 +19,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -94,6 +95,11 @@ func (s APIService) SbomAttribution(w http.ResponseWriter, r *http.Request) {
 	var args []string
 	if s.config.Scanning.ScanDebug {
 		args = append(args, "-d")
+	}
+
+	// Set Database name if declared
+	if len(s.config.Scanning.ScanKbName) > 0 {
+		args = append(args, fmt.Sprintf("-n%s", s.config.Scanning.ScanKbName))
 	}
 	args = append(args, "-a", sbomFilename)
 	zs.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))

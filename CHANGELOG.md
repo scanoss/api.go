@@ -6,7 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+
+## [1.6.2] - 2026-02-26
 ### Added
+- Added support for defining KB name on:
+  - attribution_service
+  - filecontents_service
+  - licensedetails_service
 
 ## [1.6.1] - 2026-01-27
 ### Added
@@ -181,3 +188,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.5.2]: https://github.com/scanoss/api.go/compare/v1.5.1...v1.5.2
 [1.6.0]: https://github.com/scanoss/api.go/compare/v1.5.2...v1.6.0
 [1.6.1]: https://github.com/scanoss/api.go/compare/v1.6.0...v1.6.1
+[1.6.2]: https://github.com/scanoss/api.go/compare/v1.6.1...v1.6.2
+

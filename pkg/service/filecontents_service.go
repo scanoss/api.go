@@ -63,6 +63,12 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 	if s.config.Scanning.ScanDebug {
 		args = append(args, "-d")
 	}
+
+	// Set Database name if declared
+	if len(s.config.Scanning.ScanKbName) > 0 {
+		args = append(args, fmt.Sprintf("-n%s", s.config.Scanning.ScanKbName))
+	}
+
 	args = append(args, "-k", md5)
 	zs.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // put a timeout on the scan execution
