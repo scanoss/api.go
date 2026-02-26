@@ -19,6 +19,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"os/exec"
 	"strings"
@@ -57,6 +58,11 @@ func (s APIService) LicenseDetails(w http.ResponseWriter, r *http.Request) {
 	if s.config.Scanning.ScanDebug {
 		args = append(args, "-d")
 	}
+	// Set Database name if declared
+	if len(s.config.Scanning.ScanKbName) > 0 {
+		args = append(args, fmt.Sprintf("-n%s", s.config.Scanning.ScanKbName))
+	}
+
 	args = append(args, "-l", license)
 	zs.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // put a timeout on the scan execution
