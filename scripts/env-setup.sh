@@ -17,14 +17,13 @@ if [ "$1" = "-h" ] || [ "$1" = "-help" ] ; then
   echo "   [environment] allows the optional specification of a suffix to allow multiple services to be deployed at the same time (optional)"
   exit 1
 fi
-
 # Check if force flag is set
 FORCE_FLAG=false
 if [ "$1" = "-f" ]; then
   FORCE_FLAG=true
   shift # Shift arguments to handle environment correctly
 fi
-
+# Setup default values
 DEFAULT_ENV=""
 ENVIRONMENT="${1:-$DEFAULT_ENV}"
 
@@ -44,7 +43,7 @@ if [ "$EUID" -ne 0 ] ; then
   echo "Please run as root"
   exit 1
 fi
-
+# Confirm installation or not
 if [ "$FORCE_FLAG" = true ]; then
   echo "Force flag set. Installing SCANOSS Go API $ENVIRONMENT without prompts..."
 else
@@ -57,7 +56,6 @@ else
     exit 1
   fi
 fi
-
 # Setup all the required folders and ownership
 echo "Setting up API system folders..."
 if ! mkdir -p "$CONF_DIR" ; then
@@ -116,16 +114,40 @@ if ! cp scanoss-go-api.sh /usr/local/bin ; then
   echo "api startup script copy failed"
   exit 1
 fi
-# Copy in the configuration file if requested
+# Copy in the configuration file(s) if requested
 CONF=app-config-prod.json
+ENV_CONF=app-config-prod.env
 if [ -n "$ENVIRONMENT" ] ; then
   CONF="app-config-${ENVIRONMENT}.json"
+  ENV_CONF="app-config-${ENVIRONMENT}.env"
 fi
 if [ -f "$CONF" ] && [ ! -f "$CONF_DIR/$CONF" ] ; then
   echo "Copying app config to $CONF_DIR ..."
   if ! cp "$CONF" "$CONF_DIR/" ; then
     echo "copy $CONF failed"
     exit 1
+  fi
+fi
+if [ -f "$ENV_CONF" ] && [ ! -f "$CONF_DIR/$ENV_CONF" ] ; then
+  echo "Copying app env to $CONF_DIR ..."
+  if ! cp "$ENV_CONF" "$CONF_DIR/" ; then
+    echo "copy $ENV_CONF failed"
+    exit 1
+  fi
+fi
+ENV_PATH="$CONF_DIR/$ENV_CONF"
+if [ "$RUNTIME_USER" != "root" ] ; then
+  echo "Changing ownership of $CONF_DIR to $RUNTIME_USER ..."
+  if ! chown -R $RUNTIME_USER $CONF_DIR ; then
+    echo "chown of $CONF_DIR to $RUNTIME_USER failed"
+    exit 1
+  fi
+  if [ -f "$ENV_PATH" ] ; then
+    eco "Make $ENV_CONF readable/writable only to $RUNTIME_USER ..."
+    if ! chmod 600 "$ENV_PATH" ; then
+      echo "chmod of "$ENV_PATH" to $RUNTIME_USER failed"
+      exit 1
+    fi
   fi
 fi
 # Copy the binaries if requested
@@ -155,7 +177,6 @@ if [ "$service_stopped" == "true" ] ; then
   fi
   systemctl status "$SC_SERVICE_NAME"
 else
-
  if [ "$FORCE_FLAG" = true ]; then
     echo "Force flag set. Starting SCANOSS Go API Service..."
     START_SERVICE=true
@@ -169,7 +190,6 @@ else
       START_SERVICE=true
     fi
   fi
-
   if [ "$START_SERVICE" = true ]; then
     if ! systemctl start "$SC_SERVICE_NAME" ; then
       echo "failed to restart service"
@@ -178,7 +198,7 @@ else
     systemctl status "$SC_SERVICE_NAME"
   fi
 fi
-
+# Check if we have a configuration file or not
 if [ ! -f "$CONF_DIR/$CONF" ] ; then
   echo
   echo "Warning: Please create a configuration file in: $CONF_DIR/$CONF"
@@ -187,6 +207,9 @@ if [ ! -f "$CONF_DIR/$CONF" ] ; then
 fi
 echo
 echo "Review service config in: $CONF_DIR/$CONF"
+if [ -f "$ENV_PATH" ] ; then
+  echo "Review service env in: $CONF_DIR/$ENV_CONF"
+fi
 echo "Logs are stored in: $LOGS_DIR"
 echo "Start the service using: systemctl start $SC_SERVICE_NAME"
 echo "Stop the service using: systemctl stop $SC_SERVICE_NAME"

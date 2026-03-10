@@ -11,6 +11,8 @@ DEFAULT_ENV="prod"
 ENVIRONMENT="${1:-$DEFAULT_ENV}"
 LOGFILE=/var/log/scanoss/api/scanoss-api-${ENVIRONMENT}.log
 CONF_FILE=/usr/local/etc/scanoss/api/app-config-${ENVIRONMENT}.json
+ENV_FILE=/usr/local/etc/scanoss/api/app-config-${ENVIRONMENT}.env
+CMD_ARGS=(--json-config "$CONF_FILE")
 # Rotate log
 if [ -f "$LOGFILE" ] ; then
   echo "rotating logfile..."
@@ -20,11 +22,14 @@ if [ -f "$LOGFILE" ] ; then
   gzip -f "$BACKUP_FILE"
 fi
 echo > "$LOGFILE"
-
+# Add env file if it exists
+if [ -f "$ENV_FILE" ] ; then
+  echo "adding env file"
+  CMD_ARGS+=(--env-config "$ENV_FILE")
+fi
 # echo "removing old fingerprint & sbom temporary files..."
 # rm -f /tmp/finger*.wfp /tmp/sbom*.json /tmp/failed-finger*.wfp
 
-#start API
 echo "starting SCANOSS GO API"
-
-exec /usr/local/bin/scanoss-go-api --json-config "$CONF_FILE" > "$LOGFILE" 2>&1
+#start API
+exec /usr/local/bin/scanoss-go-api "${CMD_ARGS[@]}" > "$LOGFILE" 2>&1
