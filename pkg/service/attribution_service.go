@@ -82,6 +82,8 @@ func (s APIService) SbomAttribution(w http.ResponseWriter, r *http.Request) {
 	_, err = tempFile.Write(contentsTrimmed)
 	if err != nil {
 		zs.Errorf("Failed to write to temporary SBOM file: %v - %v", tempFile.Name(), err)
+		closeFile(tempFile, zs)
+		removeFile(tempFile, zs)
 		http.Error(w, "ERROR engine attribution failed", http.StatusInternalServerError)
 		return
 	}
@@ -105,6 +107,7 @@ func (s APIService) SbomAttribution(w http.ResponseWriter, r *http.Request) {
 	zs.Debugf("Executing %v %v", s.config.Scanning.ScanBinary, strings.Join(args, " "))
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // put a timeout on the scan execution
 	defer cancel()
+	//nolint:gosec
 	output, err := exec.CommandContext(ctx, s.config.Scanning.ScanBinary, args...).Output()
 	if err != nil {
 		zs.Errorf("Attribution command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)

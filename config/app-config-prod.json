@@ -35,7 +35,7 @@
     "LoadKbDetails": true,
     "RankingAllowed": true,
     "RankingEnabled": false,
-    "MatchConfigAllowed": false,
+    "MatchConfigAllowed": true,
     "RankingThreshold": 0,
     "MinSnippetHits": 0,
     "MinSnippetLines": 0,

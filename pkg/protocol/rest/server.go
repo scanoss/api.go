@@ -32,21 +32,19 @@ import (
 	"syscall"
 	"time"
 
-	"go.opentelemetry.io/otel/sdk/resource"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
-
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
-
 	"github.com/gorilla/mux"
 	"github.com/jpillora/ipfilter"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	myconfig "scanoss.com/go-api/pkg/config"
 	"scanoss.com/go-api/pkg/service"
 )
@@ -63,14 +61,14 @@ func RunServer(config *myconfig.ServerConfig, version string) error {
 		return err
 	}
 	if config.Telemetry.Enabled {
-		oltpShutdown, err := initProviders(config, version, config.Telemetry.ExtraMetrics)
-		if err != nil {
-			return err
+		oltpShutdown, err2 := initProviders(config, version, config.Telemetry.ExtraMetrics)
+		if err2 != nil {
+			return err2
 		}
 		defer oltpShutdown()
 	}
 	apiService := service.NewAPIService(config)
-	if err := apiService.TestEngine(); err != nil {
+	if err2 := apiService.TestEngine(); err2 != nil {
 		zlog.S.Warnf("Scanning engine test failed. Scan requests are likely to fail.")
 		zlog.S.Warnf("Please make sure that %v is accessible", config.Scanning.ScanBinary)
 	}
@@ -139,12 +137,11 @@ func RunServer(config *myconfig.ServerConfig, version string) error {
 	<-c
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // Set a deadline for gracefully shutting down
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
-		zlog.S.Warnf("error shutting down server %s", err)
+	if err2 := srv.Shutdown(ctx); err2 != nil {
+		zlog.S.Warnf("error shutting down server %s", err2)
 		return fmt.Errorf("issue encountered while shutting down service")
-	} else {
-		zlog.S.Info("server gracefully stopped")
 	}
+	zlog.S.Info("server gracefully stopped")
 	return nil
 }
 
@@ -212,13 +209,11 @@ func loadPrivateKey(config *myconfig.ServerConfig) []byte {
 		if v.Type == "RSA PRIVATE KEY" || v.Type == "PRIVATE KEY" {
 			zlog.S.Debugf("Private Key: %v - %v", v.Type, v.Headers)
 			// pvt, err := openssl.LoadPrivateKeyFromPEMWithPassword(encryptedPEM, passPhrase)
-			//nolint:staticcheck
 			if x509.IsEncryptedPEMBlock(v) {
 				if len(config.TLS.Password) == 0 {
 					zlog.S.Panicf("Need to configure TLS Password to decrypt encrypted Key file: %v", config.TLS.KeyFile)
 				}
 				zlog.S.Infof("Decrypting key...")
-				//nolint:staticcheck
 				pkey, err = x509.DecryptPEMBlock(v, []byte(config.TLS.Password))
 				if err != nil {
 					zlog.S.Panicf("Failed to decrypt Key File (%v): %v", config.TLS.KeyFile, err)
@@ -386,12 +381,12 @@ func initProviders(config *myconfig.ServerConfig, version string, extraAttribute
 	return func() {
 		cxt, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		if err := traceExp.Shutdown(cxt); err != nil {
-			otel.Handle(err)
+		if err2 := traceExp.Shutdown(cxt); err2 != nil {
+			otel.Handle(err2)
 		}
 		// pushes any last exports to the receiver
-		if err := meterProvider.Shutdown(cxt); err != nil {
-			otel.Handle(err)
+		if err3 := meterProvider.Shutdown(cxt); err3 != nil {
+			otel.Handle(err3)
 		}
 	}, nil
 }

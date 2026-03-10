@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -193,15 +194,18 @@ func RunServer() error {
 
 // testHPSMSetup validates that the sources server is available to enable HPSM.
 func testHPSMSetup() error {
-	url := os.Getenv("SCANOSS_FILE_CONTENTS_URL")
-	if url == "" {
+	hpsmURL := os.Getenv("SCANOSS_FILE_CONTENTS_URL")
+	if hpsmURL == "" {
 		return fmt.Errorf("SCANOSS_FILE_CONTENTS_URL is not set")
 	}
 	// Ensure the URL ends with "/" before appending the test MD5
-	url = strings.TrimSuffix(url, "/") + "/8109a183e06165144dc8d97b791c130f"
+	hpsmURL = strings.TrimSuffix(hpsmURL, "/") + "/8109a183e06165144dc8d97b791c130f"
+	if !isSafeURL(hpsmURL) {
+		zlog.S.Warnf("Disallowed URL for HPSM: %s", hpsmURL)
+	}
 	zlog.S.Debug("HPSM test request started")
-	// Create HTTP GET request
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	//nolint:gosec // Create HTTP GET request
+	req, err := http.NewRequest(http.MethodGet, hpsmURL, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create HPSM test request: %w", err)
 	}
@@ -211,6 +215,7 @@ func testHPSMSetup() error {
 	}
 	// Perform the request with a 10-second timeout
 	client := &http.Client{Timeout: 10 * time.Second}
+	//nolint:gosec
 	resp, err := client.Do(req)
 	if resp != nil {
 		defer func(Body io.ReadCloser) {
@@ -232,4 +237,19 @@ func testHPSMSetup() error {
 	}
 	zlog.S.Infof("HPSM setup test successful (HTTP %d)", resp.StatusCode)
 	return nil
+}
+
+// isSafeURL checks if the provided URL belongs to the list of allowed hosts and returns true if it is safe, otherwise false.
+func isSafeURL(rawURL string) bool {
+	allowed := []string{"api.scanoss.com", "osskb.org", "localhost"}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	for _, host := range allowed {
+		if u.Hostname() == host {
+			return true
+		}
+	}
+	return false
 }

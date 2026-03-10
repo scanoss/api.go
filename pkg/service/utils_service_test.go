@@ -26,14 +26,13 @@ import (
 	"strings"
 	"testing"
 
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-	"go.uber.org/zap/zaptest/observer"
-
 	"github.com/golobby/config/v3"
 	"github.com/gorilla/mux"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 	myconfig "scanoss.com/go-api/pkg/config"
 )
 

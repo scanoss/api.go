@@ -23,10 +23,9 @@ import (
 	"os"
 	"strings"
 
-	"go.opentelemetry.io/otel/sdk/trace"
-
 	"github.com/golobby/config/v3"
 	"github.com/golobby/config/v3/pkg/feeder"
+	"go.opentelemetry.io/otel/sdk/trace"
 )
 
 const (

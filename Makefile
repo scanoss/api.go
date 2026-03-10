@@ -6,6 +6,8 @@ DOCKER=$(shell which docker)
 DOCKER_FULLNAME=${REPO}/${IMAGE_NAME}
 GHCR_FULLNAME=ghcr.io/${REPO}/${IMAGE_NAME}
 VERSION=$(shell ./version.sh)
+# Linter version
+LINT_VERSION := v2.11.3
 
 # HELP
 # This will output the help for each task
@@ -58,7 +60,10 @@ lint_local_fix: ## Run local instance of linting across the code base including 
 	golangci-lint run --fix ./pkg/... ./cmd/...
 
 lint_docker: ## Run docker instance of linting across the code base
-	${DOCKER} run --rm -v $(PWD):/app -v ~/.cache/golangci-lint/v1.64.8:/root/.cache -w /app golangci/golangci-lint:v1.64.8 golangci-lint run ./pkg/... ./cmd/...
+	${DOCKER} run --rm -v $(PWD):/app -v ~/.cache/golangci-lint/$(LINT_VERSION):/root/.cache -w /app golangci/golangci-lint:$(LINT_VERSION) golangci-lint run ./pkg/... ./cmd/...
+
+lint_docker_fix: ## Run docker instance of linting across the code base including auto-fixing
+	${DOCKER} run --rm -v $(PWD):/app -v ~/.cache/golangci-lint/$(LINT_VERSION):/root/.cache -w /app golangci/golangci-lint:$(LINT_VERSION) golangci-lint run --fix ./pkg/... ./cmd/...
 
 run_local:  ## Launch the API locally for test
 	@echo "Launching API locally..."
@@ -97,12 +102,17 @@ ghcr_push:  ## Push the GH container image to GH Packages
 
 ghcr_all: ghcr_build ghcr_tag ghcr_push  ## Execute all GitHub Package container actions
 
-build_amd: version  ## Build an AMD 64 binary
+build_local: version  ## Build a Local binary
+	@echo "Building AMD binary $(VERSION)..."
+	go generate ./pkg/cmd/server.go
+	CGO_ENABLED=0 go build -ldflags="-w -s" -o ./target/scanoss-go-api-local ./cmd/server
+
+build_amd: version  ## Build a Linux AMD 64 binary
 	@echo "Building AMD binary $(VERSION)..."
 	go generate ./pkg/cmd/server.go
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./target/scanoss-go-api-linux-amd64 ./cmd/server
 
-build_arm: version  ## Build an ARM 64 binary
+build_arm: version  ## Build a Linux ARM 64 binary
 	@echo "Building ARM binary $(VERSION)..."
 	go generate ./pkg/cmd/server.go
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./target/scanoss-go-api-linux-arm64 ./cmd/server
