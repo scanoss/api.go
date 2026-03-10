@@ -97,12 +97,17 @@ ghcr_push:  ## Push the GH container image to GH Packages
 
 ghcr_all: ghcr_build ghcr_tag ghcr_push  ## Execute all GitHub Package container actions
 
-build_amd: version  ## Build an AMD 64 binary
+build_local: version  ## Build a Local binary
+	@echo "Building AMD binary $(VERSION)..."
+	go generate ./pkg/cmd/server.go
+	CGO_ENABLED=0 go build -ldflags="-w -s" -o ./target/scanoss-go-api-local ./cmd/server
+
+build_amd: version  ## Build a Linux AMD 64 binary
 	@echo "Building AMD binary $(VERSION)..."
 	go generate ./pkg/cmd/server.go
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./target/scanoss-go-api-linux-amd64 ./cmd/server
 
-build_arm: version  ## Build an ARM 64 binary
+build_arm: version  ## Build a Linux ARM 64 binary
 	@echo "Building ARM binary $(VERSION)..."
 	go generate ./pkg/cmd/server.go
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-w -s" -o ./target/scanoss-go-api-linux-arm64 ./cmd/server
