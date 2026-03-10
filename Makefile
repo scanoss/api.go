@@ -6,6 +6,8 @@ DOCKER=$(shell which docker)
 DOCKER_FULLNAME=${REPO}/${IMAGE_NAME}
 GHCR_FULLNAME=ghcr.io/${REPO}/${IMAGE_NAME}
 VERSION=$(shell ./version.sh)
+# Linter version
+LINT_VERSION := v2.10.1
 
 # HELP
 # This will output the help for each task
@@ -58,7 +60,10 @@ lint_local_fix: ## Run local instance of linting across the code base including 
 	golangci-lint run --fix ./pkg/... ./cmd/...
 
 lint_docker: ## Run docker instance of linting across the code base
-	${DOCKER} run --rm -v $(PWD):/app -v ~/.cache/golangci-lint/v1.64.8:/root/.cache -w /app golangci/golangci-lint:v1.64.8 golangci-lint run ./pkg/... ./cmd/...
+	${DOCKER} run --rm -v $(PWD):/app -v ~/.cache/golangci-lint/$(LINT_VERSION):/root/.cache -w /app golangci/golangci-lint:$(LINT_VERSION) golangci-lint run ./pkg/... ./cmd/...
+
+lint_docker_fix: ## Run docker instance of linting across the code base including auto-fixing
+	${DOCKER} run --rm -v $(PWD):/app -v ~/.cache/golangci-lint/$(LINT_VERSION):/root/.cache -w /app golangci/golangci-lint:$(LINT_VERSION) golangci-lint run --fix ./pkg/... ./cmd/...
 
 run_local:  ## Launch the API locally for test
 	@echo "Launching API locally..."

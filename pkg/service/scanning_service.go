@@ -29,11 +29,10 @@ import (
 	"strings"
 	"time"
 
-	"go.opentelemetry.io/otel/attribute"
-	oteltrace "go.opentelemetry.io/otel/trace"
-
 	"github.com/google/uuid"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -107,8 +106,8 @@ func (s APIService) scanDirect(w http.ResponseWriter, r *http.Request, zs *zap.S
 			http.Error(w, "ERROR invalid SBOM 'type' supplied", http.StatusBadRequest)
 			return 0
 		}
-		tempFile, err := s.writeSbomFile(scanConfig.sbomFile, zs)
-		if err != nil {
+		tempFile, err2 := s.writeSbomFile(scanConfig.sbomFile, zs)
+		if err2 != nil {
 			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 			return 0
 		}
@@ -447,6 +446,7 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	timeoutErr := fmt.Errorf("scan command timed out after %v seconds", s.config.Scanning.ScanTimeout)
 	ctx, cancel := context.WithTimeoutCause(context.Background(), time.Duration(s.config.Scanning.ScanTimeout)*time.Second, timeoutErr) // put a timeout on the scan execution
 	defer cancel()
+	//nolint:gosec
 	output, err := exec.CommandContext(ctx, s.config.Scanning.ScanBinary, args...).Output()
 	if err != nil {
 		if cause := context.Cause(ctx); cause != nil {
@@ -472,6 +472,7 @@ func (s APIService) TestEngine() error {
 	timeoutErr := fmt.Errorf("engine test command timed out after 10 seconds")
 	ctx, cancel := context.WithTimeoutCause(context.Background(), 10*time.Second, timeoutErr) // put a timeout on the scanoss execution
 	defer cancel()
+	//nolint:gosec
 	output, err := exec.CommandContext(ctx, s.config.Scanning.ScanBinary, args...).Output()
 	if err != nil {
 		if cause := context.Cause(ctx); cause != nil {

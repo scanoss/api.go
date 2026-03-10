@@ -133,14 +133,14 @@ func (s APIService) loadKBDetails() {
 		var ms matchStructure
 		// Go through the list of file results and extract one set of KB details
 		for _, key := range resDataAny {
-			data, err := json.Marshal(key) // convert the given interface to JSON
-			if err != nil {
-				zs.Warnf("Failed to convert KB version map to json: %v - %v", key, err)
+			data, err2 := json.Marshal(key) // convert the given interface to JSON
+			if err2 != nil {
+				zs.Warnf("Failed to convert KB version map to json: %v - %v", key, err2)
 				return
 			}
-			err = json.Unmarshal(data, &ms)
-			if err != nil {
-				zs.Warnf("Failed to parse KB version from eninge result: %v - %v", data, err)
+			err2 = json.Unmarshal(data, &ms)
+			if err2 != nil {
+				zs.Warnf("Failed to parse KB version from eninge result: %v - %v", data, err2)
 				return
 			}
 		}

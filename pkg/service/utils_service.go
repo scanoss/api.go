@@ -27,19 +27,15 @@ import (
 	"strings"
 	"sync"
 
-	"go.opentelemetry.io/otel/codes"
-
-	oteltrace "go.opentelemetry.io/otel/trace"
-
-	"go.opentelemetry.io/otel/metric"
-
-	"go.opentelemetry.io/otel"
-	"go.uber.org/zap/zapcore"
-
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	zlog "github.com/scanoss/zap-logging-helper/pkg/logger"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	myconfig "scanoss.com/go-api/pkg/config"
 )
 
@@ -208,6 +204,7 @@ func MetricsHandler(w http.ResponseWriter, r *http.Request) {
 
 // printResponse sends the given response to the HTTP Response Writer.
 func printResponse(w http.ResponseWriter, resp string, zs *zap.SugaredLogger, silent bool) {
+	//nolint:gosec
 	_, err := fmt.Fprint(w, resp)
 	if err != nil {
 		zs.Errorf("Failed to write HTTP response: %v", err)
@@ -260,6 +257,7 @@ func (s APIService) copyWfpTempFile(filename string, zs *zap.SugaredLogger) stri
 		zs.Errorf("Failed to open file %v: %v", filename, err)
 		return ""
 	}
+	defer closeFile(source, zs)
 	tempFile, err := os.CreateTemp(s.config.Scanning.WfpLoc, "failed-finger*.wfp")
 	if err != nil {
 		zs.Errorf("Failed to create temporary file: %v", err)
@@ -288,6 +286,7 @@ func closeFile(f *os.File, zs *zap.SugaredLogger) {
 // removeFile removes the given file and warns if anything went wrong.
 func removeFile(f *os.File, zs *zap.SugaredLogger) {
 	if f != nil {
+		//nolint:gosec
 		err := os.Remove(f.Name())
 		if err != nil {
 			zs.Warnf("Problem removing temp file: %v - %v", f.Name(), err)
