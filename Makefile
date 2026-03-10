@@ -7,7 +7,7 @@ DOCKER_FULLNAME=${REPO}/${IMAGE_NAME}
 GHCR_FULLNAME=ghcr.io/${REPO}/${IMAGE_NAME}
 VERSION=$(shell ./version.sh)
 # Linter version
-LINT_VERSION := v2.10.1
+LINT_VERSION := v2.11.3
 
 # HELP
 # This will output the help for each task

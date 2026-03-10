@@ -286,7 +286,6 @@ func closeFile(f *os.File, zs *zap.SugaredLogger) {
 // removeFile removes the given file and warns if anything went wrong.
 func removeFile(f *os.File, zs *zap.SugaredLogger) {
 	if f != nil {
-		//nolint:gosec
 		err := os.Remove(f.Name())
 		if err != nil {
 			zs.Warnf("Problem removing temp file: %v - %v", f.Name(), err)
