@@ -143,7 +143,7 @@ if [ "$RUNTIME_USER" != "root" ] ; then
     exit 1
   fi
   if [ -f "$ENV_PATH" ] ; then
-    eco "Make $ENV_CONF readable/writable only to $RUNTIME_USER ..."
+    echo "Make $ENV_CONF readable/writable only to $RUNTIME_USER ..."
     if ! chmod 600 "$ENV_PATH" ; then
       echo "chmod of "$ENV_PATH" to $RUNTIME_USER failed"
       exit 1

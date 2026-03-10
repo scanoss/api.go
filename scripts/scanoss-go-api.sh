@@ -23,7 +23,10 @@ if [ -f "$LOGFILE" ] ; then
 fi
 echo > "$LOGFILE"
 # Add env file if it exists
-if [ -f "$ENV_FILE" ] ; then
+if [ -e "$ENV_FILE" ] && [ ! -r "$ENV_FILE" ] ; then
+  echo "env file is not readable: $ENV_FILE" >&2
+  exit 1
+elif [ -f "$ENV_FILE" ] ; then
   echo "adding env file"
   CMD_ARGS+=(--env-config "$ENV_FILE")
 fi
