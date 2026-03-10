@@ -1,4 +1,4 @@
-FROM golang:1.24 AS build
+FROM golang:1.25 AS build
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ FROM build AS test
 
 COPY test-support/scanoss.sh /app/scanoss.sh
 
-FROM debian:buster-slim AS production
+FROM debian:bookworm-slim AS production
 
 WORKDIR /app
  
