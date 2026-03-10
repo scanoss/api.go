@@ -220,7 +220,9 @@ func (s APIService) writeSbomFile(sbom string, zs *zap.SugaredLogger) (*os.File,
 	_, err = tempFile.WriteString(sbom + "\n")
 	if err != nil {
 		zs.Errorf("Failed to write to temporary SBOM file: %v - %v", tempFile.Name(), err)
-		return tempFile, err
+		closeFile(tempFile, zs)
+		removeFile(tempFile, zs)
+		return nil, err
 	}
 	closeFile(tempFile, zs)
 	return tempFile, nil
