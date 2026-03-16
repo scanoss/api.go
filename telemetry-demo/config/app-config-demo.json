@@ -4,20 +4,20 @@
     "Port": "5443",
     "Addr": "",
     "Debug": true,
-    "Trace": true,
-    "Mode": "dev"
+    "Trace": false,
+    "Mode": "prod"
   },
   "Logging": {
-    "DynamicLogging": true,
+    "DynamicLogging": false,
     "DynamicPort": "localhost:60085",
     "OutputPaths": [
-      "stderr"
+      "stderr", "/var/log/scanoss/api/scanoss-api-prod.log"
     ],
     "ConfigFile": ""
   },
   "Telemetry": {
     "Enabled": true,
-    "ExtraMetrics": true,
+    "ExtraMetrics": false,
     "OltpExporter": "otel-collector:4317"
   },
   "Scanning": {
