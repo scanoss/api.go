@@ -12,7 +12,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Get tags to allow build script to get build version
+          ref: ${{ github.ref }}  # Checkout the specified tag
+          fetch-depth: 0  # Get tags to allow the build script to get a build version
 
       - name: Set up Go
         uses: actions/setup-go@v5

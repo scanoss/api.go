@@ -34,11 +34,11 @@ Run a continuous scan (every 2 seconds):
 Or run a single one-off scan:
 ```bash
 echo 'file=056f9b95f439d915bd3d81ceee9ccf9a,1234,test.js' | curl -s -X POST 'http://localhost:5443/scan/direct' -F 'file=@-;filename=test.wfp' 
-````
+```
 
 ## Visualisation
 The complete observability stack is configured to export metrics, logs, and traces. This can all be visualised in Grafana.
-To logins to Grafana, please browse the following URL:
+To login to Grafana, please browse the following URL:
 - http://localhost:3000
 - No username/password required
 
@@ -64,8 +64,8 @@ To view traces, please browse the following URL:
 #### Option 1: Grafana (Advanced Dashboards)
 1. **URL**: http://localhost:3000/a/grafana-metricsdrilldown-app/drilldown
 2. Select "prometheus" from the "Data Source" dropdown
-3.Type `scanoss` into the "Search metric" field to list all SCANOSS metrics
-3. Select an appropriate time window
+3. Type `scanoss` into the "Search metric" field to list all SCANOSS metrics
+4. Select an appropriate time window
 
 #### Option 2: Prometheus UI (Built-in, Simple)
 - **URL**: http://localhost:9090
@@ -141,7 +141,7 @@ After exploring this demo, configure telemetry for your production API using [TE
 | `promtail-config.yml`         | Configures Promtail log Collector pipeline   |
 | `loki.yaml`                   | Defines Loki logging setup                   |
 | `prometheus.yml`              | Defines Prometheus scrape targets            |
-| `tempo.yml`                   | Defines Temop traces setup                   |
+| `tempo.yml`                   | Defines Tempo traces setup                   |
 | `grafana-datasources.yaml`    | Data source configuration for Grafana        |
 | `config/app-config-demo.json` | API configuration with telemetry enabled     |
 | `TELEMETRY_CONFIG.md`         | Production telemetry configuration guide     |
