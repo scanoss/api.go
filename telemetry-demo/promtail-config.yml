@@ -33,8 +33,5 @@ scrape_configs:
           format: Unix
       - labels:
           level:
-          span_id:
-          trace_id:
-          reqId:
       - output:
           source: msg
