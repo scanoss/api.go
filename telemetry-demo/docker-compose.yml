@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # SCANOSS API with telemetry enabled
   scanoss-api:
@@ -13,6 +11,7 @@ services:
     volumes:
       - ./config:/app/config
       - ../test-support/scanoss.sh:/usr/local/bin/scanoss:ro
+      - ./logs/scanoss/api:/var/log/scanoss/api:rw
     command: ["-json-config", "/app/config/app-config-demo.json", "-debug"]
     depends_on:
       - otel-collector
@@ -32,6 +31,21 @@ services:
       - "8889:8889"   # Prometheus metrics from collector
     depends_on:
       - prometheus
+      - loki
+    networks:
+      - monitoring
+    restart: unless-stopped
+
+  # Collect logs
+  promtail:
+    image: grafana/promtail:3.0.0
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/promtail-config.yml:ro
+      - ./logs/scanoss/api:/var/log/scanoss/api:ro
+      - promtail-positions:/tmp
+    depends_on:
+      - loki
     networks:
       - monitoring
     restart: unless-stopped
@@ -46,14 +60,45 @@ services:
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.enable-remote-write-receiver'
       - '--storage.tsdb.path=/prometheus'  
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
+      - '--enable-feature=exemplar-storage'
     networks:
       - monitoring
     restart: unless-stopped
+
+  # ─── Tempo ────────────────
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: tempo
+    restart: unless-stopped
+    volumes:
+      - ./tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API (queried by Grafana)
+      - "4317"        # internal OTLP gRPC (not exposed externally — collector talks to it)
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    networks:
+      - monitoring
+
+  # ─── Loki ─────────────────────
+  loki:
+    image: grafana/loki:2.9.7
+    container_name: loki
+    restart: unless-stopped
+    volumes:
+      - ./loki.yaml:/etc/loki/loki.yaml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    networks:
+      - monitoring
 
   # Grafana - creates graphs from Prometheus data
   grafana:
@@ -61,19 +106,28 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin   # dev convenience — lock down for prod
+#    environment:
+#      - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
     depends_on:
       - prometheus
+      - loki
     networks:
       - monitoring
     restart: unless-stopped
 
+# Networking ─────────────────────
 networks:
   monitoring:
     driver: bridge
-
+# Volumes ─────────────────────
 volumes:
   prometheus_data:
   grafana_data:
+  loki_data:
+  tempo_data:
+  promtail-positions:

@@ -22,14 +22,12 @@ Edit your service configuration file and change:
 ```json
 "Telemetry": {
   "Enabled": false,    // ← Change to true
-  "ExtraMetrics": false, // ← Change to true  
   "OltpExporter": "localhost:4317"
 }
 ```
 ### Option 2: Environment Variables
 ```bash
 export OTEL_ENABLED=true
-export OTEL_EXTRA=true  
 export OTEL_EXPORTER_OLTP=localhost:4317
 ```
 
@@ -47,17 +45,17 @@ OTEL_EXPORTER_OLTP=localhost:4317
 
 The following metrics are exposed by the SCANOSS API (defined in [utils_service.go](https://github.com/scanoss/api.go/blob/main/pkg/service/utils_service.go)):
 
-| Metric Name | Type | Description 
-|------------|------|-------------
-| `scanoss-api.scan.file_count` | Counter | Files received per scan request 
-| `scanoss-api.scan.file_size` | Counter | Total bytes scanned 
-| `scanoss-api.contents.req_count` | Counter | File contents requests 
-| `scanoss-api.license.req_count` | Counter | License details requests 
-| `scanoss-api.attribution.req_count` | Counter | Attribution requests 
-| `scanoss-api.scan.req_time` | Histogram | Scan duration (ms) 
-| `scanoss-api.scan.file_time` | Histogram | Per-file scan time (ms) 
-| `scanoss-api.scan.req_time_sec` | Histogram | Scan duration (seconds) 
-| `scanoss-api.scan.file_time_sec` | Histogram | Per-file scan time (seconds) 
+| Metric Name                         | Type      | Description                     |
+|-------------------------------------|-----------|---------------------------------|
+| `scanoss-api.scan.file_count`       | Counter   | Files received per scan request |
+| `scanoss-api.scan.file_size`        | Counter   | Total bytes scanned             |
+| `scanoss-api.contents.req_count`    | Counter   | File contents requests          |
+| `scanoss-api.license.req_count`     | Counter   | License details requests        |
+| `scanoss-api.attribution.req_count` | Counter   | Attribution requests            |
+| `scanoss-api.scan.req_time`         | Histogram | Scan duration (ms)              |
+| `scanoss-api.scan.file_time`        | Histogram | Per-file scan time (ms)         |
+| `scanoss-api.scan.req_time_sec`     | Histogram | Scan duration (seconds)         |
+| `scanoss-api.scan.file_time_sec`    | Histogram | Per-file scan time (seconds)    |
 
 ## Metric Name Translation
 
