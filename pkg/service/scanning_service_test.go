@@ -613,9 +613,8 @@ func TestScanDirectSingleFlags(t *testing.T) {
 	myConfig.Scanning.ScanDebug = true
 	myConfig.Scanning.ScanTimeout = 5
 	apiService := NewAPIService(myConfig)
-
 	fieldName := "file"
-	file := "./tests/fingers.wfp"
+	filePath := "./tests/fingers.wfp"
 	binary := "../../test-support/scanoss.sh"
 
 	tests := []struct {
@@ -666,8 +665,6 @@ func TestScanDirectSingleFlags(t *testing.T) {
 			myConfig.Scanning.ScanFlags = test.serverFlags
 			myConfig.Scanning.AllowFlagsOverride = test.allowFlagsOverride
 			myConfig.Scanning.ScanBinary = binary
-			filePath := file
-			fieldName := fieldName
 			postBody := new(bytes.Buffer)
 			mw := multipart.NewWriter(postBody)
 			file, err := os.Open(filePath)
