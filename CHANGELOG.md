@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.5] - 2026-03-24
+### Fixed
+- Fixed an issue where client-side flags could override server-side flags.
+  - Client-side overrides now need an explicit enablement flag: `AllowFlagsOverride`
+
 ## [1.6.4] - 2026-03-23
 ### Added
 - Add support for single worker scan timeout HTTP response handling (504)
@@ -200,3 +205,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [1.6.2]: https://github.com/scanoss/api.go/compare/v1.6.1...v1.6.2
 [1.6.3]: https://github.com/scanoss/api.go/compare/v1.6.2...v1.6.3
 [1.6.4]: https://github.com/scanoss/api.go/compare/v1.6.3...v1.6.4
+[1.6.5]: https://github.com/scanoss/api.go/compare/v1.6.4...v1.6.5

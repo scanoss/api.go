@@ -25,6 +25,7 @@
     "ScanBinary": "scanoss",
     "ScanDebug": false,
     "ScanFlags": 0,
+    "AllowFlagsOverride": false,
     "ScanTimeout": 180,
     "WfpGrouping": 3,
     "Workers": 2,
