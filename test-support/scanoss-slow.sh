@@ -24,10 +24,10 @@ if [ "$1" == "-h" ] || [ "$2" == "-h" ] || [ "$1" == "-help" ] || [ "$2" == "-he
 fi
 export DELAY=10
 echo "Info: Running slow simulation delay: $DELAY" >&2
-"$d"/scanoss.sh
+"$d"/scanoss.sh "$@"
 EXIT_CODE=$?
 # Only sleep if the command finished successfully
-if [ $EXIT_CODE ] ; then
+if [ $EXIT_CODE -eq 0 ] ; then
   sleep $DELAY
 fi
 exit $EXIT_CODE
