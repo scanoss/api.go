@@ -231,10 +231,14 @@ func (s APIService) writeSbomFile(sbom string, zs *zap.SugaredLogger) (*os.File,
 // singleScan runs a scan of the WFP in a single thread.
 func (s APIService) singleScan(wfp, sbomFile string, config ScanningServiceConfig, zs *zap.SugaredLogger, w http.ResponseWriter) {
 	zs.Debugf("Single threaded scan...")
-	result, err := s.scanWfp(wfp, sbomFile, config, zs)
+	result, timedOut, err := s.scanWfp(wfp, sbomFile, config, zs)
 	if err != nil {
+		if timedOut {
+			http.Error(w, "ERROR engine scan timed out", http.StatusGatewayTimeout)
+		} else {
+			http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
+		}
 		zs.Errorf("Engine scan failed: %v", err)
-		http.Error(w, "ERROR engine scan failed", http.StatusInternalServerError)
 	} else {
 		zs.Debug("Scan completed")
 		response := strings.TrimSpace(result)
@@ -355,7 +359,7 @@ func (s APIService) workerScan(id string, jobs <-chan string, results chan<- str
 			zs.Warnf("Nothing in the job request to scan. Ignoring")
 			results <- ""
 		} else {
-			result, err := s.scanWfp(job, sbomFile, config, zs)
+			result, _, err := s.scanWfp(job, sbomFile, config, zs)
 			if s.config.App.Trace {
 				zs.Debugf("scan result (%v): %v, %v", id, result, err)
 			}
@@ -380,15 +384,15 @@ func (s APIService) workerScan(id string, jobs <-chan string, results chan<- str
 }
 
 // scanWfp run the scanoss engine scan of the supplied WFP.
-func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, zs *zap.SugaredLogger) (string, error) {
+func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, zs *zap.SugaredLogger) (string, bool, error) {
 	if len(wfp) == 0 {
 		zs.Warnf("Nothing in the job request to scan. Ignoring")
-		return "", fmt.Errorf("no wfp supplied to scan. ignoring")
+		return "", false, fmt.Errorf("no wfp supplied to scan. ignoring")
 	}
 	tempFile, err := os.CreateTemp(s.config.Scanning.WfpLoc, "finger*.wfp")
 	if err != nil {
 		zs.Errorf("Failed to create temporary file: %v", err)
-		return "", fmt.Errorf("failed to create temporary WFP file")
+		return "", false, fmt.Errorf("failed to create temporary WFP file")
 	}
 	if s.config.Scanning.TmpFileDelete {
 		defer removeFile(tempFile, zs)
@@ -398,7 +402,7 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	if err != nil {
 		closeFile(tempFile, zs)
 		zs.Errorf("Failed to write WFP to temporary file: %v", err)
-		return "", fmt.Errorf("failed to write to temporary WFP file")
+		return "", false, fmt.Errorf("failed to write to temporary WFP file")
 	}
 	closeFile(tempFile, zs)
 	// Build command arguments
@@ -448,11 +452,13 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 	timeoutErr := fmt.Errorf("scan command timed out after %v seconds", s.config.Scanning.ScanTimeout)
 	ctx, cancel := context.WithTimeoutCause(context.Background(), time.Duration(s.config.Scanning.ScanTimeout)*time.Second, timeoutErr) // put a timeout on the scan execution
 	defer cancel()
+	timeoutEncountered := false
 	//nolint:gosec
 	output, err := exec.CommandContext(ctx, s.config.Scanning.ScanBinary, args...).Output()
 	if err != nil {
 		if cause := context.Cause(ctx); cause != nil {
 			zs.Errorf("Scan command (%v) timed out: %v", s.config.Scanning.ScanBinary, cause)
+			timeoutEncountered = true
 		} else {
 			zs.Errorf("Scan command (%v %v) failed: %v", s.config.Scanning.ScanBinary, args, err)
 		}
@@ -460,9 +466,9 @@ func (s APIService) scanWfp(wfp, sbomFile string, config ScanningServiceConfig, 
 		if s.config.Scanning.KeepFailedWfps {
 			s.copyWfpTempFile(tempFile.Name(), zs)
 		}
-		return "", fmt.Errorf("failed to scan WFP: %v", err)
+		return "", timeoutEncountered, fmt.Errorf("failed to scan WFP: %v", err)
 	}
-	return string(output), err
+	return string(output), timeoutEncountered, err
 }
 
 // TestEngine tests if the SCANOSS engine is accessible and running.
