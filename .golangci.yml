@@ -83,3 +83,4 @@ linters:
           - cyclop
           - godot
           - funlen
+          - lll
