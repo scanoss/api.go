@@ -602,7 +602,7 @@ func TestScanDirectSingleSlow(t *testing.T) {
 	}
 }
 
-func TestScanDirectSingleFlags(t *testing.T) {
+func TestScanFlags(t *testing.T) {
 	err := zlog.NewSugaredDevLogger()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
@@ -612,10 +612,6 @@ func TestScanDirectSingleFlags(t *testing.T) {
 	myConfig.App.Trace = true
 	myConfig.Scanning.ScanDebug = true
 	myConfig.Scanning.ScanTimeout = 5
-	apiService := NewAPIService(myConfig)
-	fieldName := "file"
-	filePath := "./tests/fingers.wfp"
-	binary := "../../test-support/scanoss.sh"
 
 	tests := []struct {
 		name               string
@@ -629,73 +625,51 @@ func TestScanDirectSingleFlags(t *testing.T) {
 			serverFlags:        0,
 			allowFlagsOverride: false,
 			clientFlags:        "",
-			want:               http.StatusOK,
+			want:               0,
 		},
 		{
 			name:               "Scanning - client flags",
 			serverFlags:        0,
 			allowFlagsOverride: false,
 			clientFlags:        "256",
-			want:               http.StatusOK,
+			want:               256,
 		},
 		{
 			name:               "Scanning - server flags",
 			serverFlags:        1248,
 			allowFlagsOverride: false,
 			clientFlags:        "",
-			want:               http.StatusOK,
+			want:               1248,
 		},
 		{
 			name:               "Scanning - server/clients flags - allowed",
 			serverFlags:        1248,
 			allowFlagsOverride: true,
 			clientFlags:        "256",
-			want:               http.StatusOK,
+			want:               256,
 		},
 		{
 			name:               "Scanning - server/clients flags - not allowed",
 			serverFlags:        1248,
 			allowFlagsOverride: false,
 			clientFlags:        "256",
-			want:               http.StatusOK,
+			want:               1248,
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			myConfig.Scanning.ScanFlags = test.serverFlags
 			myConfig.Scanning.AllowFlagsOverride = test.allowFlagsOverride
-			myConfig.Scanning.ScanBinary = binary
-			postBody := new(bytes.Buffer)
-			mw := multipart.NewWriter(postBody)
-			file, err := os.Open(filePath)
-			if err != nil {
-				t.Fatal(err)
-			}
-			writer, err := mw.CreateFormFile(fieldName, filePath)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if _, err = io.Copy(writer, file); err != nil {
-				t.Fatal(err)
-			}
-			_ = mw.Close() // close the writer before making the request
 
-			req := httptest.NewRequest(http.MethodPost, "http://localhost/scan/direct", postBody)
-			w := httptest.NewRecorder()
-			req.Header.Add("Content-Type", mw.FormDataContentType())
+			req := httptest.NewRequest(http.MethodPost, "/scan/direct", nil)
 			if len(test.clientFlags) > 0 {
 				req.Header.Add("flags", test.clientFlags)
 			}
-			apiService.ScanDirect(w, req)
-			resp := w.Result()
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				t.Fatalf("an error was not expected when reading from request: %v", err)
-			}
-			assert.Equal(t, test.want, resp.StatusCode)
-			fmt.Println("Status: ", resp.StatusCode)
-			fmt.Println("Type: ", resp.Header.Get("Content-Type"))
-			fmt.Println("Body: ", string(body))
+			apiService := NewAPIService(myConfig)
+			cfg, err := apiService.getConfigFromRequest(req, zlog.S)
+			assert.NoError(t, err)
+			assert.Equal(t, test.want, cfg.flags)
+			fmt.Println("Flags: ", cfg.flags)
 		})
 	}
 }
