@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.6.5] - 2026-03-24
+## [1.6.5] - 2026-03-26
 ### Fixed
 - Fixed an issue where client-side flags could override server-side flags.
   - Client-side overrides now need an explicit enablement flag: `AllowFlagsOverride`
