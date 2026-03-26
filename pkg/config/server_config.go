@@ -59,6 +59,7 @@ type ServerConfig struct {
 		ScanKbName         string `env:"SCAN_KB_NAME"`                 // KB name passed as "-n" parameter to the scanoss command
 		ScanDebug          bool   `env:"SCAN_DEBUG"`                   // true/false
 		ScanFlags          int    `env:"SCAN_ENGINE_FLAGS"`            // Default flags to use when scanning
+		AllowFlagsOverride bool   `env:"SCAN_ALLOW_FLAGS_OVERRIDE"`    // Allow clients to override the default flags
 		ScanTimeout        int    `env:"SCAN_ENGINE_TIMEOUT"`          // timeout for waiting for the scan engine to respond
 		WfpGrouping        int    `env:"SCAN_WFP_GROUPING"`            // number of WFP to group into a single scan engine command
 		Workers            int    `env:"SCAN_WORKERS"`                 // Number of concurrent workers to use per scan request
@@ -138,6 +139,7 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Scanning.MinSnippetHits = 0         // Lets the engine decide on minimum snippet hits based on the file total lines
 	cfg.Scanning.MinSnippetLines = 0        // Lets the engine decide on minimum snippet hits on the file total lines
 	cfg.Scanning.HonourFileExts = true
+	cfg.Scanning.AllowFlagsOverride = false // Disallow clients overriding the default flags if it's set server-side
 }
 
 // LoadFile loads the specified file and returns its contents in a string array.

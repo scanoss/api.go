@@ -184,6 +184,16 @@ func (s APIService) getConfigFromRequest(r *http.Request, zs *zap.SugaredLogger)
 	if len(dbName) == 0 {
 		dbName = strings.TrimSpace(r.Header.Get("db_name"))
 	}
+	if len(flags) > 0 && s.config.Scanning.ScanFlags > 0 {
+		if !s.config.Scanning.AllowFlagsOverride {
+			zs.Warnf("Ignoring flags (%v) in the request. Using flags from the server config: %v",
+				flags, s.config.Scanning.ScanFlags)
+			flags = "" // Clear the flags to use the server configuration
+		} else {
+			zs.Debugf("Using flags (%v) from the request instead of server config: %v",
+				flags, s.config.Scanning.ScanFlags)
+		}
+	}
 	scanSettings := strings.TrimSpace(r.Header.Get("scanoss-settings")) // Check the header for scan settings
 	if s.config.App.Trace {
 		zs.Debugf("Header: %v, Form: %v, flags: %v, type: %v, assets: %v, db_name: %v, scanSettings: %v",

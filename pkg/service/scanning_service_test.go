@@ -601,3 +601,75 @@ func TestScanDirectSingleSlow(t *testing.T) {
 		})
 	}
 }
+
+func TestScanFlags(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	myConfig := setupConfig(t)
+	myConfig.App.Trace = true
+	myConfig.Scanning.ScanDebug = true
+	myConfig.Scanning.ScanTimeout = 5
+
+	tests := []struct {
+		name               string
+		serverFlags        int
+		allowFlagsOverride bool
+		clientFlags        string
+		want               int
+	}{
+		{
+			name:               "Scanning - no flags",
+			serverFlags:        0,
+			allowFlagsOverride: false,
+			clientFlags:        "",
+			want:               0,
+		},
+		{
+			name:               "Scanning - client flags",
+			serverFlags:        0,
+			allowFlagsOverride: false,
+			clientFlags:        "256",
+			want:               256,
+		},
+		{
+			name:               "Scanning - server flags",
+			serverFlags:        1248,
+			allowFlagsOverride: false,
+			clientFlags:        "",
+			want:               1248,
+		},
+		{
+			name:               "Scanning - server/clients flags - allowed",
+			serverFlags:        1248,
+			allowFlagsOverride: true,
+			clientFlags:        "256",
+			want:               256,
+		},
+		{
+			name:               "Scanning - server/clients flags - not allowed",
+			serverFlags:        1248,
+			allowFlagsOverride: false,
+			clientFlags:        "256",
+			want:               1248,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			myConfig.Scanning.ScanFlags = test.serverFlags
+			myConfig.Scanning.AllowFlagsOverride = test.allowFlagsOverride
+
+			req := httptest.NewRequest(http.MethodPost, "/scan/direct", nil)
+			if len(test.clientFlags) > 0 {
+				req.Header.Add("flags", test.clientFlags)
+			}
+			apiService := NewAPIService(myConfig)
+			cfg, err := apiService.getConfigFromRequest(req, zlog.S)
+			assert.NoError(t, err)
+			assert.Equal(t, test.want, cfg.flags)
+			fmt.Println("Flags: ", cfg.flags)
+		})
+	}
+}
