@@ -37,6 +37,8 @@ import (
 )
 
 // newReq sets up a request with specified URL variables.
+//
+//nolint:unparam // method is always GET for now but kept for flexibility
 func newReq(method, path, body string, vars map[string]string) *http.Request {
 	r := httptest.NewRequest(method, path, strings.NewReader(body))
 	return mux.SetURLVars(r, vars)
