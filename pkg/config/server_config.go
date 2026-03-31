@@ -80,6 +80,8 @@ type ServerConfig struct {
 		MinSnippetHits     int  `env:"SCANOSS_MIN_SNIPPET_HITS"`     // Minimum snippet hits to consider a snippet match
 		MinSnippetLines    int  `env:"SCANOSS_MIN_SNIPPET_LINES"`    // Minimum snippet lines to consider a snippet match
 		HonourFileExts     bool `env:"SCANOSS_HONOUR_FILE_EXTS"`     // Honour file extensions to filter snippet matches
+		// file contents
+		FileContentsLimit int64 `env:"SCANOSS_FILE_CONTENTS_LIMIT"` // Maximum file contents size in MB (default 50)
 	}
 	TLS struct {
 		CertFile string `env:"SCAN_TLS_CERT"`   // TLS Certificate
@@ -140,6 +142,8 @@ func setServerConfigDefaults(cfg *ServerConfig) {
 	cfg.Scanning.MinSnippetLines = 0        // Lets the engine decide on minimum snippet hits on the file total lines
 	cfg.Scanning.HonourFileExts = true
 	cfg.Scanning.AllowFlagsOverride = false // Disallow clients overriding the default flags if it's set server-side
+	// file contents
+	cfg.Scanning.FileContentsLimit = 50 // Default 50 MB
 }
 
 // LoadFile loads the specified file and returns its contents in a string array.

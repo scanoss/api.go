@@ -17,6 +17,7 @@ package service
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -39,11 +40,12 @@ func TestFileContents(t *testing.T) {
 	apiService := NewAPIService(myConfig)
 
 	tests := []struct {
-		name      string
-		input     map[string]string
-		binary    string
-		telemetry bool
-		want      int
+		name              string
+		input             map[string]string
+		binary            string
+		telemetry         bool
+		fileContentsLimit int64
+		want              int
 	}{
 		{
 			name:   "Test Contents - empty",
@@ -79,6 +81,30 @@ func TestFileContents(t *testing.T) {
 			input:     map[string]string{"md5": "37f7cd1e657aa3c30ece35995b4c59e5"},
 			want:      http.StatusOK,
 		},
+		{
+			name:              "Test Contents - within file size limit",
+			binary:            "../../test-support/scanoss.sh",
+			telemetry:         false,
+			input:             map[string]string{"md5": "37f7cd1e657aa3c30ece35995b4c59e5"},
+			fileContentsLimit: 50, // 50 MB
+			want:              http.StatusOK,
+		},
+		{
+			name:              "Test Contents - limit disabled (zero)",
+			binary:            "../../test-support/scanoss.sh",
+			telemetry:         false,
+			input:             map[string]string{"md5": "37f7cd1e657aa3c30ece35995b4c59e5"},
+			fileContentsLimit: 0, // disabled
+			want:              http.StatusOK,
+		},
+		{
+			name:              "Test Contents - exceeds file size limit",
+			binary:            "../../test-support/scanoss.sh",
+			telemetry:         false,
+			input:             map[string]string{"md5": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+			fileContentsLimit: 1, // 1 MB - large output (~1.1 MB) will exceed this
+			want:              http.StatusRequestEntityTooLarge,
+		},
 	}
 
 	for _, test := range tests {
@@ -92,6 +118,7 @@ func TestFileContents(t *testing.T) {
 			}
 			myConfig.Scanning.ScanBinary = test.binary
 			myConfig.Telemetry.Enabled = test.telemetry
+			myConfig.Scanning.FileContentsLimit = test.fileContentsLimit
 			req := newReq("GET", "http://localhost/file_contents/{md5}", "", test.input)
 			w := httptest.NewRecorder()
 			apiService.FileContents(w, req)
@@ -106,6 +133,34 @@ func TestFileContents(t *testing.T) {
 			fmt.Println("Body: ", string(body))
 		})
 	}
+}
+
+func TestFileContentsLimitExceeded(t *testing.T) {
+	err := zlog.NewSugaredDevLogger()
+	if err != nil {
+		t.Fatalf("an error '%s' was not expected when opening a sugared logger", err)
+	}
+	defer zlog.SyncZap()
+	myConfig := setupConfig(t)
+	myConfig.Scanning.ScanBinary = "../../test-support/scanoss.sh"
+	myConfig.Scanning.FileContentsLimit = 1 // 1 MB
+	apiService := NewAPIService(myConfig)
+
+	// Use special md5 that triggers large output (~1.1 MB) exceeding the 1 MB limit
+	req := newReq("GET", "http://localhost/file_contents/{md5}", "", map[string]string{"md5": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"})
+	w := httptest.NewRecorder()
+	apiService.FileContents(w, req)
+	resp := w.Result()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("an error was not expected when reading from request: %v", err)
+	}
+	assert.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
+	assert.Contains(t, resp.Header.Get("Content-Type"), "application/json")
+	var result map[string]string
+	err = json.Unmarshal(body, &result)
+	assert.NoError(t, err, "response body should be valid JSON")
+	assert.Contains(t, result["error"], "exceeds the maximum allowed limit")
 }
 
 func TestDetectCharset(t *testing.T) {
