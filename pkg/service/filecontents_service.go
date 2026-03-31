@@ -83,6 +83,7 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	limitBytes := s.config.Scanning.FileContentsLimit * 1024 * 1024
+	//unlimited for FileContentsLimit <= 0
 	if limitBytes > 0 && int64(len(output)) > limitBytes {
 		zs.Warnf("File contents size %d bytes exceeds limit %d MB for md5 %s", len(output), s.config.Scanning.FileContentsLimit, md5)
 		w.Header().Set(ContentTypeKey, ApplicationJSON)

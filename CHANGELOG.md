@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Added configurable file contents size limit (`SCANOSS_FILE_CONTENTS_LIMIT`).
+  - Limits the maximum file size returned by the `file_contents` endpoint (default: 50 MB).
+  - Returns HTTP 400 when the file exceeds the configured limit.
 
 ## [1.6.5] - 2026-03-26
 ### Fixed
