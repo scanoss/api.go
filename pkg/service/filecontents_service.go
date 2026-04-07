@@ -19,7 +19,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os/exec"
@@ -82,19 +81,12 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ERROR recovering file contents", http.StatusInternalServerError)
 		return
 	}
-	// convert the configured limit from MB to bytes.
-	limitBytes := s.config.Scanning.FileContentsLimit * 1024 * 1024
 	outputLen := int64(len(output))
 	// unlimited for FileContentsLimit <= 0
-	if limitBytes > 0 && outputLen > limitBytes {
+	if s.fileContentslimitBytes > 0 && outputLen > s.fileContentslimitBytes {
 		zs.Warnf("File contents size %d bytes exceeds limit %d MB for md5 %s", outputLen, s.config.Scanning.FileContentsLimit, md5)
-		w.Header().Set(ContentTypeKey, ApplicationJSON)
-		w.WriteHeader(http.StatusRequestEntityTooLarge)
-		resp := map[string]string{
-			"error": fmt.Sprintf("file contents size (%d bytes) exceeds the maximum allowed limit (%d MB)",
-				len(output), s.config.Scanning.FileContentsLimit),
-		}
-		_ = json.NewEncoder(w).Encode(resp)
+		http.Error(w, fmt.Sprintf("file contents size (%d bytes) exceeds the maximum allowed limit (%d MB)",
+			outputLen, s.config.Scanning.FileContentsLimit), http.StatusRequestEntityTooLarge)
 		return
 	}
 	charset := detectCharset(output)

@@ -17,7 +17,6 @@ package service
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -37,8 +36,6 @@ func TestFileContents(t *testing.T) {
 	myConfig := setupConfig(t)
 	myConfig.App.Trace = true
 	myConfig.Scanning.ScanDebug = true
-	apiService := NewAPIService(myConfig)
-
 	tests := []struct {
 		name              string
 		input             map[string]string
@@ -119,9 +116,10 @@ func TestFileContents(t *testing.T) {
 			myConfig.Scanning.ScanBinary = test.binary
 			myConfig.Telemetry.Enabled = test.telemetry
 			myConfig.Scanning.FileContentsLimit = test.fileContentsLimit
+			svc := NewAPIService(myConfig)
 			req := newReq("GET", "http://localhost/file_contents/{md5}", "", test.input)
 			w := httptest.NewRecorder()
-			apiService.FileContents(w, req)
+			svc.FileContents(w, req)
 			resp := w.Result()
 			body, err := io.ReadAll(resp.Body)
 			if err != nil {
@@ -156,11 +154,8 @@ func TestFileContentsLimitExceeded(t *testing.T) {
 		t.Fatalf("an error was not expected when reading from request: %v", err)
 	}
 	assert.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
-	assert.Contains(t, resp.Header.Get("Content-Type"), "application/json")
-	var result map[string]string
-	err = json.Unmarshal(body, &result)
-	assert.NoError(t, err, "response body should be valid JSON")
-	assert.Contains(t, result["error"], "exceeds the maximum allowed limit")
+	assert.Contains(t, resp.Header.Get("Content-Type"), "text/plain")
+	assert.Contains(t, string(body), "exceeds the maximum allowed limit")
 }
 
 func TestDetectCharset(t *testing.T) {
