@@ -65,13 +65,14 @@ type TraceContextKey struct{}
 
 // APIService details.
 type APIService struct {
-	config *myconfig.ServerConfig
+	config                 *myconfig.ServerConfig
+	fileContentslimitBytes int64
 }
 
 // NewAPIService instantiates an API Service instance for servicing the API requests.
 func NewAPIService(config *myconfig.ServerConfig) *APIService {
 	setupMetrics()
-	return &APIService{config: config}
+	return &APIService{config: config, fileContentslimitBytes: config.Scanning.FileContentsLimit * 1024 * 1024}
 }
 
 // Structure for counting the total number of requests processed.

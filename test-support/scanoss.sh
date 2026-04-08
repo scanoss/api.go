@@ -32,6 +32,11 @@ if [ "$1" == "-k" ] || [ "$2" == "-k" ] || [ "$3" == "-k" ] ; then
     echo "Error: Invalid MD5 hash format: $md5" >&2
     exit 1
   fi
+  # Simulate large file contents (>1MB) for a specific md5
+  if [ "$md5" == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" ]; then
+    head -c 1100000 /dev/zero | tr '\0' 'A'
+    exit 0
+  fi
   echo "file contents: $md5"
   echo "line 2"
   echo "line 3"

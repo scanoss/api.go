@@ -81,15 +81,23 @@ func (s APIService) FileContents(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "ERROR recovering file contents", http.StatusInternalServerError)
 		return
 	}
+	outputLen := int64(len(output))
+	// unlimited for FileContentsLimit <= 0
+	if s.fileContentslimitBytes > 0 && outputLen > s.fileContentslimitBytes {
+		zs.Warnf("File contents size %d bytes exceeds limit %d MB for md5 %s", outputLen, s.config.Scanning.FileContentsLimit, md5)
+		http.Error(w, fmt.Sprintf("file contents size (%d bytes) exceeds the maximum allowed limit (%d MB)",
+			outputLen, s.config.Scanning.FileContentsLimit), http.StatusRequestEntityTooLarge)
+		return
+	}
 	charset := detectCharset(output)
 	if s.config.App.Trace {
-		zs.Debugf("Sending back contents: %v - '%s'", len(output), output)
+		zs.Debugf("Sending back contents: %v - '%s'", outputLen, output)
 	} else {
-		zs.Debugf("Sending back contents: %v", len(output))
+		zs.Debugf("Sending back contents: %v", outputLen)
 	}
 	w.Header().Set(ContentTypeKey, fmt.Sprintf("text/plain; charset=%s", charset))
 	w.Header().Set(CharsetDetectedKey, charset)
-	w.Header().Set(ContentLengthKey, fmt.Sprintf("%d", len(output)))
+	w.Header().Set(ContentLengthKey, fmt.Sprintf("%d", outputLen))
 	printResponse(w, string(output), zs, false)
 }
 

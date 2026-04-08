@@ -17,6 +17,7 @@
     "RankingThreshold": 0,
     "MinSnippetHits": 0,
     "MinSnippetLines": 0,
-    "HonourFileExts": true
+    "HonourFileExts": true,
+    "FileContentsLimit": 50
   }
 }
